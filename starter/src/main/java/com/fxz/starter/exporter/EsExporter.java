@@ -5,11 +5,11 @@ import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.objects.BaseRecord;
+import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
+import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.QueryRecord;
 import com.fxz.exporter.elastic.objects.SourceRecord;
 import com.fxz.queerer.util.CacheUtil;
-import com.fxz.starter.repository.RecordRepository;
-import com.fxz.starter.repository.SourceRepository;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
@@ -28,11 +28,11 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Priority(order = 0)
 public class EsExporter implements Exporter {
-    RecordRepository recordRepository;
-    SourceRepository sourceRepository;
+    BaseRecordRepository recordRepository;
+    BaseSourceRepository sourceRepository;
     AtomicLong counter = new AtomicLong(0);
 
-    public EsExporter(RecordRepository recordRepository, SourceRepository sourceRepository) {
+    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository) {
         this.recordRepository = recordRepository;
         this.sourceRepository = sourceRepository;
     }

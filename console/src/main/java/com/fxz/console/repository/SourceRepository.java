@@ -1,4 +1,4 @@
-package com.fxz.starter.repository;
+package com.fxz.console.repository;
 
 
 import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;

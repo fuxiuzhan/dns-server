@@ -16,16 +16,17 @@ import com.fxz.dnscore.server.impl.DnsClient;
 import com.fxz.dnscore.server.impl.DnsServer;
 import com.fxz.dnscore.server.impl.handler.ServerHandler;
 import com.fxz.exporter.DefaultExporter;
+import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
+import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.cache.impl.LocalLRUCache;
 import com.fxz.queerer.cache.impl.RedisCache;
 import com.fxz.queerer.query.impl.CacheQuery;
 import com.fxz.queerer.query.impl.LocalQuery;
-import com.fxz.queerer.query.impl.SelfDefineQuery;
+import com.fxz.queerer.query.impl.RedirectPTRQuery;
 import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
 import com.fxz.starter.queerer.EsQuery;
-import com.fxz.starter.repository.RecordRepository;
 import com.fxz.starter.repository.SourceRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +67,11 @@ public class AutoConfig {
 
     @Value("${dns.query.cache.fixed.ttl:0}")
     private int fixedTtl;
+
+    @Value("${dns.server.name:}")
+    private String nameServer;
+    @Value("${dns.server.name.ttl:3600}")
+    private int nameServerTtl;
 
     @Bean
     public QueryManger injectQueryManger(@Autowired @Qualifier("queryList") List<Query> queryList) {
@@ -112,7 +118,7 @@ public class AutoConfig {
         queryList.add(new CacheQuery(cacheOperate));
         //net query process other side
         queryList.add(new LocalQuery());
-        queryList.add(new SelfDefineQuery());
+        queryList.add(new RedirectPTRQuery(nameServer, nameServerTtl));
         //add other
         if (sourceRepository != null) {
             queryList.add(new EsQuery(sourceRepository));
@@ -127,8 +133,8 @@ public class AutoConfig {
     }
 
     @Bean
-    @ConditionalOnClass({RecordRepository.class, SourceRepository.class})
-    public EsExporter injectEsExporter(@Autowired RecordRepository recordRepository, @Autowired SourceRepository sourceRepository) {
+    @ConditionalOnClass({BaseRecordRepository.class, BaseSourceRepository.class})
+    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository) {
         return new EsExporter(recordRepository, sourceRepository);
     }
 
