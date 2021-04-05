@@ -44,6 +44,13 @@ public class EsExporter implements Exporter {
 
     @Override
     @Monitor
+    /**
+     * TODO
+     * consider separate caching and logging
+     * two operations have different wight
+     * caching process immediately
+     * logging scheduled and batching
+     */
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"
                 , name()
@@ -78,6 +85,7 @@ public class EsExporter implements Exporter {
                 sourceRecord.setCounter(1);
                 sourceRecord.setId(id);
             }
+            sourceRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             sourceRecord.setResult(JSON.toJSONString(records));
             sourceRecord.setLastAccess(System.currentTimeMillis());
             sourceRepository.save(sourceRecord);

@@ -13,6 +13,7 @@ import java.io.Serializable;
 public class SourceRecord implements Serializable {
     private String id;
     private String result;
+    private String queryType;
     private Integer counter;
     private long lastAccess;
 }
