@@ -25,7 +25,7 @@ public class LocalLRUCache implements CacheOperate {
     LruCache lruCache = new LruCache(1024);
 
     @Override
-    public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
+    public List<BaseRecord> get(String host, String dnsRecordType) {
         String key = CacheUtil.assembleKey(host, dnsRecordType);
         Object o = lruCache.get(key);
         if (o != null && o instanceof LocalCacheValue) {
@@ -45,7 +45,17 @@ public class LocalLRUCache implements CacheOperate {
     }
 
     @Override
+    public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
+        return get(host, dnsRecordType.name());
+    }
+
+    @Override
     public Boolean set(String host, DnsRecordType dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
+        return set(host, dnsRecordType.name(), baseRecordList, ttl);
+    }
+
+    @Override
+    public Boolean set(String host, String dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
         if (baseRecordList != null && baseRecordList.size() > 0) {
             LocalCacheValue localCacheValue = new LocalCacheValue();
             localCacheValue.object = baseRecordList;

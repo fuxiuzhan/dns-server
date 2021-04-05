@@ -18,6 +18,10 @@ public interface CacheOperate {
         return null;
     }
 
+    default List<BaseRecord> get(String host, String dnsRecordType) {
+        return null;
+    }
+
     /**
      * @param host
      * @param dnsRecordType
@@ -26,6 +30,10 @@ public interface CacheOperate {
      * @return
      */
     default Boolean set(String host, DnsRecordType dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
+        return false;
+    }
+
+    default Boolean set(String host, String dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
         return false;
     }
 }

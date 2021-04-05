@@ -28,7 +28,7 @@ public class RedisCache implements CacheOperate {
     }
 
     @Override
-    public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
+    public List<BaseRecord> get(String host, String dnsRecordType) {
         String key = CacheUtil.assembleKey(host, dnsRecordType);
         Object o = redisTemplate.opsForValue().get(key);
         if (o != null) {
@@ -38,13 +38,23 @@ public class RedisCache implements CacheOperate {
     }
 
     @Override
+    public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
+        return get(host, dnsRecordType.name());
+    }
+
+    @Override
     public Boolean set(String host, DnsRecordType dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
+        return set(host, dnsRecordType.name(), baseRecordList, ttl);
+    }
+
+    @Override
+    public Boolean set(String host, String dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
         if (baseRecordList != null && baseRecordList.size() > 0) {
             String key = CacheUtil.assembleKey(host, dnsRecordType);
             if (fixedTtl > 0) {
                 ttl = fixedTtl;
             }
-            redisTemplate.opsForValue().set(key, JSON.toJSONString(baseRecordList),ttl,TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(key, JSON.toJSONString(baseRecordList), ttl, TimeUnit.SECONDS);
             return true;
         }
         return false;
