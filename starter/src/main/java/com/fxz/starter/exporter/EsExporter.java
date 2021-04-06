@@ -15,8 +15,8 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
 import io.netty.handler.codec.dns.DnsSection;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.client.utils.DateUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +67,8 @@ public class EsExporter implements Exporter {
             queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
             queryRecord.setIp(query.sender().getAddress().getHostAddress());
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
-            queryRecord.setDate(DateUtils.formatDate(new Date(), "yyyy-MM-dd HH:mm:ss"));
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            queryRecord.setDate(formatter.format(new Date()));
             queryRecord.setRes(JSON.toJSONString(records));
             queryRecord.setTimeMillis(System.currentTimeMillis());
             recordRepository.save(queryRecord);
@@ -88,6 +89,7 @@ public class EsExporter implements Exporter {
             sourceRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             sourceRecord.setResult(JSON.toJSONString(records));
             sourceRecord.setLastAccess(System.currentTimeMillis());
+            sourceRecord.setAnswerCnt(records.size());
             sourceRepository.save(sourceRecord);
         }
     }

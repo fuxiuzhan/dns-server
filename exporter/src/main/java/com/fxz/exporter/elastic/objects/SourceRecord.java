@@ -15,5 +15,6 @@ public class SourceRecord implements Serializable {
     private String result;
     private String queryType;
     private Integer counter;
-    private long lastAccess;
+    private Long lastAccess;
+    private Integer answerCnt;
 }

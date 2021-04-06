@@ -3,10 +3,10 @@ package com.fxz.starter.queerer;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.queerer.Query;
+import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.SourceRecord;
 import com.fxz.queerer.util.CacheUtil;
 import com.fxz.queerer.util.ConvertUtil;
-import com.fxz.starter.repository.SourceRepository;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -20,14 +20,14 @@ import java.util.Optional;
 @Slf4j
 @Priority(order = 3)
 public class EsQuery implements Query {
-    SourceRepository sourceRepository;
+    BaseSourceRepository sourceRepository;
 
     @Override
     public String name() {
         return "esQuery";
     }
 
-    public EsQuery(SourceRepository sourceRepository) {
+    public EsQuery(BaseSourceRepository sourceRepository) {
         this.sourceRepository = sourceRepository;
     }
 
