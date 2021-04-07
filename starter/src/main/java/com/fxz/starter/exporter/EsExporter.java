@@ -68,7 +68,8 @@ public class EsExporter implements Exporter {
             queryRecord.setIp(query.sender().getAddress().getHostAddress());
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            queryRecord.setDate(formatter.format(new Date()));
+            queryRecord.setDateStr(formatter.format(new Date()));
+            queryRecord.setDate(new Date());
             queryRecord.setRes(JSON.toJSONString(records));
             queryRecord.setTimeMillis(System.currentTimeMillis());
             recordRepository.save(queryRecord);
@@ -80,15 +81,16 @@ public class EsExporter implements Exporter {
             Optional<SourceRecord> byId = sourceRepository.findById(id);
             if (byId.isPresent()) {
                 sourceRecord = byId.get();
-                sourceRecord.setCounter(sourceRecord.getCounter() + 1);
+                sourceRecord.setCnt(sourceRecord.getCnt() + 1);
             } else {
                 sourceRecord = new SourceRecord();
-                sourceRecord.setCounter(1);
+                sourceRecord.setCnt(1);
                 sourceRecord.setId(id);
             }
+            sourceRecord.setDateStr(formatter.format(new Date()));
             sourceRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             sourceRecord.setResult(JSON.toJSONString(records));
-            sourceRecord.setLastAccess(System.currentTimeMillis());
+            sourceRecord.setLastAccess(new Date());
             sourceRecord.setAnswerCnt(records.size());
             sourceRepository.save(sourceRecord);
         }
