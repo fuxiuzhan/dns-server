@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EsExporter implements Exporter {
     BaseRecordRepository recordRepository;
     BaseSourceRepository sourceRepository;
-    String dnsServerName;
+    String appName;
     AtomicLong counter = new AtomicLong(0);
 
     public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String dnsServerName) {
@@ -74,7 +74,6 @@ public class EsExporter implements Exporter {
             queryRecord.setDateStr(formatter.format(new Date()));
             queryRecord.setDate(new Date());
             queryRecord.setRes(JSON.toJSONString(records));
-            queryRecord.setTimeMillis(System.currentTimeMillis());
             recordRepository.save(queryRecord);
             /**
              * record source
@@ -84,7 +83,7 @@ public class EsExporter implements Exporter {
             Optional<SourceRecord> byId = sourceRepository.findById(id);
             if (byId.isPresent()) {
                 sourceRecord = byId.get();
-                sourceRecord.setCnt(sourceRecord.getCnt() + 1);
+                sourceRecord.setCnt(sourceRecord.getCnt() == null ? 0 : sourceRecord.getCnt() + 1);
             } else {
                 sourceRecord = new SourceRecord();
                 sourceRecord.setCnt(1);
