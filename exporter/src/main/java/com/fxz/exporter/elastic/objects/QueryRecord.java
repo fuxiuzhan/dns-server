@@ -11,6 +11,7 @@ import java.io.Serializable;
 @Data
 @Document(indexName = "dns_query_record")
 public class QueryRecord implements Serializable {
+    private String serverName;
     private String id;
     private String ip;
     private String host;

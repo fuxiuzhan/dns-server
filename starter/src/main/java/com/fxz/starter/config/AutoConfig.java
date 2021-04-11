@@ -61,6 +61,8 @@ public class AutoConfig {
 //    @Value("#{'${dns.domain.servers}'.split(',')}")
     private String domainServers;
 
+    @Value("${spring.application.name:fuled_dns_server}")
+    private String dnsServerName;
     @Value("${dns.query.cache.expr.enabled:true}")
     private boolean checkCacheExpr;
 
@@ -134,7 +136,7 @@ public class AutoConfig {
     @Bean
     @ConditionalOnClass({BaseRecordRepository.class, BaseSourceRepository.class})
     public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository) {
-        return new EsExporter(recordRepository, sourceRepository);
+        return new EsExporter(recordRepository, sourceRepository, dnsServerName);
     }
 
     @Bean

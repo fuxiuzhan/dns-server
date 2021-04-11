@@ -30,11 +30,13 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EsExporter implements Exporter {
     BaseRecordRepository recordRepository;
     BaseSourceRepository sourceRepository;
+    String dnsServerName;
     AtomicLong counter = new AtomicLong(0);
 
-    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository) {
+    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String dnsServerName) {
         this.recordRepository = recordRepository;
         this.sourceRepository = sourceRepository;
+        this.dnsServerName = dnsServerName;
     }
 
     @Override
@@ -62,6 +64,7 @@ public class EsExporter implements Exporter {
              * record history
              */
             QueryRecord queryRecord = new QueryRecord();
+            queryRecord.setServerName(dnsServerName);
             queryRecord.setId(System.currentTimeMillis() + "_" + counter.getAndIncrement());
             queryRecord.setAnswerCnt(records.size());
             queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
@@ -90,6 +93,7 @@ public class EsExporter implements Exporter {
             sourceRecord.setResult(JSON.toJSONString(records));
             sourceRecord.setLastAccess(System.currentTimeMillis());
             sourceRecord.setAnswerCnt(records.size());
+            sourceRecord.setServerName(dnsServerName);
             sourceRepository.save(sourceRecord);
         }
     }
