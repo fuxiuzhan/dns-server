@@ -12,6 +12,7 @@ import com.fxz.dnscore.server.impl.DnsClient;
 import com.fxz.dnscore.server.impl.resolver.Resolver;
 import com.fxz.queerer.CacheOperate;
 import io.netty.handler.codec.dns.*;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
@@ -139,6 +140,7 @@ public class ParentResolver implements Resolver, Query {
                         cacheOperates.get(i).set(host, type, baseRecords, ttl);
                     }
                 }
+                ReferenceCountUtil.release(datagramDnsResponse);
                 return baseRecords;
             }
         }

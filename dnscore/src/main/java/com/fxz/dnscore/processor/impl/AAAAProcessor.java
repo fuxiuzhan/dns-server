@@ -30,7 +30,7 @@ public class AAAAProcessor extends AbstractProcessor {
         for (BaseRecord record : records) {
             if (record instanceof AAAARecord) {
                 AAAARecord aaaaRecord = (AAAARecord) record;
-                recordList.add(DnsRecordCoder.assembleA(aaaaRecord.getHost(), aaaaRecord.getTtl(), aaaaRecord.getIpV6()));
+                recordList.add(DnsRecordCoder.assembleAAAA(aaaaRecord.getHost(), aaaaRecord.getTtl(), aaaaRecord.getIpV6()));
             }
         }
         return recordList;
