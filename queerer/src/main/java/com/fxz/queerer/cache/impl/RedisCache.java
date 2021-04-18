@@ -52,7 +52,7 @@ public class RedisCache implements CacheOperate {
         if (baseRecordList != null && baseRecordList.size() > 0) {
             String key = CacheUtil.assembleKey(host, dnsRecordType);
             if (fixedTtl > 0) {
-                ttl = fixedTtl;
+                ttl = Math.max(fixedTtl, ttl);
             }
             redisTemplate.opsForValue().set(key, JSON.toJSONString(baseRecordList), ttl, TimeUnit.SECONDS);
             return true;
