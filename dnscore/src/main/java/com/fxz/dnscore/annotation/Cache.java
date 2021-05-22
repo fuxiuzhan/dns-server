@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit;
  * springcache有其缺陷，主要一点就是不能指定过期时间，也不支持基于LRU+Expr的过期策略，而且扩展本地缓存
  * 有一定困难
  * <p>
- * 为了加速访问，缓存可能采用二级缓存策略 redis+localcahe  query->localcache->redis->db  localcache采用小容量LRU+Expr淘汰策略缓存，redis采用expr淘汰策略
+ * 为了加速访问，缓存可能采用二级缓存策略 redis+localcahe  query->localcache->redis->db
+ * localcache采用小容量LRU+Expr淘汰策略缓存，redis采用expr淘汰策略
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

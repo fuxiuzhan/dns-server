@@ -7,6 +7,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 
+/**
+ * @author fxz
+ */
 public class ThreadPoolConfig {
     static AtomicLong counter = new AtomicLong(0);
     static final int CORE_THREADS = Math.max(16, Runtime.getRuntime().availableProcessors() * 4);

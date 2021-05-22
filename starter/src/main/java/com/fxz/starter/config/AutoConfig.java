@@ -21,8 +21,8 @@ import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.cache.impl.LocalLRUCache;
 import com.fxz.queerer.cache.impl.RedisCache;
+import com.fxz.queerer.query.impl.BeforeQuery;
 import com.fxz.queerer.query.impl.CacheQuery;
-import com.fxz.queerer.query.impl.LocalQuery;
 import com.fxz.queerer.query.impl.RedirectPTRQuery;
 import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
@@ -115,10 +115,11 @@ public class AutoConfig {
 
     @Bean("queryList")
     public List<Query> injectQueryList(@Autowired CacheOperate cacheOperate, @Autowired(required = false) BaseSourceRepository sourceRepository) {
+        //priority   BeforeQuery(management)->RedirectPTRQuery(ptr)->CacheQuery(cache)->EsQuery(local)
         List<Query> queryList = new ArrayList<>();
+        queryList.add(new BeforeQuery(cacheOperate));
         queryList.add(new CacheQuery(cacheOperate));
         //net query process other side
-        queryList.add(new LocalQuery());
         queryList.add(new RedirectPTRQuery(nameServer, nameServerTtl));
         //add other
         if (sourceRepository != null) {
