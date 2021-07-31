@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
  * @author xiuzhan.fu
  */
 @Component
+@ConditionalOnBean(EnabledMarker.MarkClient.class)
 @Slf4j
 public class AutoConfig {
 
@@ -169,6 +171,7 @@ public class AutoConfig {
     public ServerManager injectServerManager(@Autowired List<LifeCycle> serverList) {
         ServerManager serverManager = new ServerManager();
         serverManager.setServerList(serverList);
+        serverManager.startAllServers();
         return serverManager;
     }
 

@@ -78,7 +78,7 @@ public class LocalLRUCache implements CacheOperate {
     }
 
     static class LruCache extends LinkedHashMap {
-        int size = 1024;
+        int size;
 
         LruCache(int size) {
             super(size);
