@@ -12,6 +12,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsQueryDecoder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -62,8 +63,12 @@ public class DnsServer implements LifeCycle {
                                 nioDatagramChannel.pipeline().addLast(handler);
                             }
                         }).option(ChannelOption.SO_BROADCAST, true);
-
-                ChannelFuture future = bootstrap.bind(ip, port).sync();
+                ChannelFuture future = null;
+                if (StringUtils.hasText(ip)) {
+                    future = bootstrap.bind(ip, port).sync();
+                } else {
+                    future = bootstrap.bind(port).sync();
+                }
                 future.channel().closeFuture().sync();
                 log.info("dnsServer at host->{},port->{} started....", ip, port);
             } finally {

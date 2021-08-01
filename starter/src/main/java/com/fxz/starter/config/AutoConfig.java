@@ -52,7 +52,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AutoConfig {
 
-    @Value("${dns.server.ip:127.0.0.1}")
+    @Value("${dns.server.ip:}")
     private String ip;
     @Value("${dns.server.port:53}")
     private Integer port;
