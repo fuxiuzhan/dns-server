@@ -1,7 +1,6 @@
 package com.fxz.console.cache;
 
 
-import org.springframework.core.annotation.AliasFor;
 import org.springframework.stereotype.Indexed;
 
 import java.lang.annotation.*;
@@ -24,14 +23,6 @@ public @interface Cache {
      * @return
      */
     String key() default "";
-
-    /**
-     * 缓存前缀
-     *
-     * @return
-     */
-    @AliasFor("value")
-    String keyPrefix() default "";
 
     String value() default "";
 
