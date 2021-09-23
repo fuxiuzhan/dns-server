@@ -34,7 +34,7 @@ public class CacheAspect {
     @Value("${method.cache.enabled:true}")
     private boolean cacheEnabled;
 
-    private static final String METHOD_CACHE_PREFIX = "";
+    private static final String METHOD_CACHE_PREFIX = System.getProperty("app.id", "default");
     @Autowired
     @Qualifier("redisTemplate")
     private RedisTemplate redisTemplate;
@@ -44,7 +44,6 @@ public class CacheAspect {
     @Around("@annotation(com.fxz.console.cache.BatchCache) ||@annotation(com.fxz.console.cache.Cache)")
     public Object processCache(ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         if (cacheEnabled) {
-
             MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
             List<Cache> saveList = new ArrayList<>();
             List<Cache> delList = new ArrayList<>();
@@ -171,7 +170,7 @@ public class CacheAspect {
     }
 
     private String defaultKey(ProceedingJoinPoint proceedingJoinPoint) {
-        String className =proceedingJoinPoint.getSignature().getDeclaringTypeName();
+        String className = proceedingJoinPoint.getSignature().getDeclaringTypeName();
         MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
         String value = METHOD_CACHE_PREFIX + "_" + className + "_" + methodSignature.getName() + "_" + proceedingJoinPoint.getArgs().length + "_" + Arrays.deepHashCode(proceedingJoinPoint.getArgs());
         return value;

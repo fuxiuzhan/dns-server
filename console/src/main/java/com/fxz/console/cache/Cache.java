@@ -9,12 +9,9 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author xiuzhan.fu
- * cache注解的功能需要扩展
- * springcache有其缺陷，主要一点就是不能指定过期时间，也不支持基于LRU+Expr的过期策略，而且扩展本地缓存
- * 有一定困难
- * <p>
- * 为了加速访问，缓存可能采用二级缓存策略 redis+localcahe  query->localcache->redis->db
- * localcache采用小容量LRU+Expr淘汰策略缓存，redis采用expr淘汰策略
+ *
+ * 轻量级的切面缓存工具，支持任意超时时间及
+ * EL表达式 ，防止springcache的缓存雪崩问题
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -43,14 +40,14 @@ public @interface Cache {
      *
      * @return
      */
-    int expr() default 0;
+    int expr() default 10;
 
     /**
      * 过期时间单位
      *
      * @return
      */
-    TimeUnit unit() default TimeUnit.SECONDS;
+    TimeUnit unit() default TimeUnit.MINUTES;
 
     /**
      * 缓存操作

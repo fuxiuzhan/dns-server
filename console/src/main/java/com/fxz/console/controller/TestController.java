@@ -4,6 +4,7 @@ package com.fxz.console.controller;
 import com.fxz.console.cache.BatchCache;
 import com.fxz.console.cache.Cache;
 import com.fxz.console.cache.CacheOpTypeEnum;
+import com.fxz.dnscore.annotation.Monitor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -29,11 +30,13 @@ public class TestController {
     }
 
 
+    @Monitor
     @GetMapping("/cache2")
-    @BatchCache(value = {@Cache(value = "com.fxz.dns:", key = "#id", expr = 10, unit = TimeUnit.MINUTES),
+    @BatchCache(value = {@Cache(value = "com.fxz.dns:", key = "#id", expr = 10, unit = TimeUnit.MINUTES,localTurbo = false),
             @Cache(value = "com.fxz.dns:q:", key = "#id", expr = 10, localTurbo = true),
-            @Cache(value = "com.fxz.dns:s", key = "#id", opType = CacheOpTypeEnum.DELETE), @Cache(expr = 5)})
-    public String testCache2(String id) {
+            @Cache(value = "com.fxz.dns:s", key = "#id", opType = CacheOpTypeEnum.SAVE), @Cache(expr = 5)})
+    public String testCache2(String id) throws InterruptedException {
+        Thread.sleep(10);
         return System.currentTimeMillis() + "";
     }
 }
