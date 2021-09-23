@@ -31,8 +31,8 @@ public class TestController {
 
     @GetMapping("/cache2")
     @BatchCache(value = {@Cache(value = "com.fxz.dns:", key = "#id", expr = 10, unit = TimeUnit.MINUTES),
-            @Cache(value = "com.fxz.dns:q:", key = "#id", expr = 10,localTurbo = true),
-            @Cache(value = "com.fxz.dns:s", key = "#id", opType = CacheOpTypeEnum.DELETE)})
+            @Cache(value = "com.fxz.dns:q:", key = "#id", expr = 10, localTurbo = true),
+            @Cache(value = "com.fxz.dns:s", key = "#id", opType = CacheOpTypeEnum.DELETE), @Cache(expr = 5)})
     public String testCache2(String id) {
         return System.currentTimeMillis() + "";
     }

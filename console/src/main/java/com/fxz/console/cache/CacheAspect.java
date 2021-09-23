@@ -171,7 +171,7 @@ public class CacheAspect {
     }
 
     private String defaultKey(ProceedingJoinPoint proceedingJoinPoint) {
-        String className = proceedingJoinPoint.getTarget().getClass().getName();
+        String className =proceedingJoinPoint.getSignature().getDeclaringTypeName();
         MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
         String value = METHOD_CACHE_PREFIX + "_" + className + "_" + methodSignature.getName() + "_" + proceedingJoinPoint.getArgs().length + "_" + Arrays.deepHashCode(proceedingJoinPoint.getArgs());
         return value;
