@@ -19,6 +19,7 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.io.Serializable;
 import java.lang.reflect.Parameter;
 import java.util.*;
 
@@ -35,13 +36,13 @@ public class CacheAspect {
     private boolean cacheEnabled;
 
     private static final String METHOD_CACHE_PREFIX = System.getProperty("app.id", "default");
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("redisTemplate")
     private RedisTemplate redisTemplate;
 
     LruCache lruCache = new LruCache(1024);
 
-    @Around("@annotation(com.fxz.console.cache.BatchCache) ||@annotation(com.fxz.console.cache.Cache)")
+    @Around("@annotation(com.fxz.console.cache.BatchCache) || @annotation(com.fxz.console.cache.Cache)")
     public Object processCache(ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         if (cacheEnabled) {
             MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
@@ -85,26 +86,28 @@ public class CacheAspect {
     private CacheValue getCache(ProceedingJoinPoint proceedingJoinPoint, List<Cache> cacheList) {
         if (Objects.nonNull(cacheList) && cacheList.size() > 0) {
             for (Cache cache : cacheList) {
-                String key = evaluateExpression(proceedingJoinPoint, cache);
-                if (cache.localTurbo()) {
-                    Object o = lruCache.get(key);
-                    if (o != null && o instanceof CacheValue) {
-                        CacheValue localCacheValue = (CacheValue) o;
-                        if (localCacheValue.getExprInSeconds() > 0) {
-                            if ((System.currentTimeMillis() - localCacheValue.getLastAccessTime()) > localCacheValue.getExprInSeconds() * 1000L) {
-                                lruCache.remove(key);
+                if (evaluateCondition(proceedingJoinPoint, cache)) {
+                    String key = evaluateKey(proceedingJoinPoint, cache);
+                    if (cache.localTurbo()) {
+                        Object o = lruCache.get(key);
+                        if (o != null && o instanceof CacheValue) {
+                            CacheValue localCacheValue = (CacheValue) o;
+                            if (localCacheValue.getExprInSeconds() > 0) {
+                                if ((System.currentTimeMillis() - localCacheValue.getLastAccessTime()) > localCacheValue.getExprInSeconds() * 1000L) {
+                                    lruCache.remove(key);
+                                } else {
+                                    return localCacheValue;
+                                }
                             } else {
                                 return localCacheValue;
                             }
-                        } else {
-                            return localCacheValue;
                         }
-                    }
-                } else {
-                    if (Objects.nonNull(redisTemplate)) {
-                        Object o = redisTemplate.opsForValue().get(key);
-                        if (Objects.nonNull(o) && o instanceof String) {
-                            return JSON.parseObject(o + "", CacheValue.class);
+                    } else {
+                        if (Objects.nonNull(redisTemplate)) {
+                            Object o = redisTemplate.opsForValue().get(key);
+                            if (Objects.nonNull(o) && o instanceof String) {
+                                return JSON.parseObject(o + "", CacheValue.class);
+                            }
                         }
                     }
                 }
@@ -116,18 +119,20 @@ public class CacheAspect {
     private void setCache(ProceedingJoinPoint proceedingJoinPoint, List<Cache> cacheList, Object result) {
         if (Objects.nonNull(cacheList) && cacheList.size() > 0) {
             for (Cache cache : cacheList) {
-                String key = evaluateExpression(proceedingJoinPoint, cache);
-                CacheValue cacheValue = new CacheValue();
-                cacheValue.setLastAccessTime(System.currentTimeMillis());
-                cacheValue.setExprInSeconds(cache.unit().toSeconds(cache.expr()));
-                cacheValue.setObject(result);
-                if (cache.localTurbo()) {
-                    if ((cache.includeNullResult() && Objects.isNull(result)) || (!cache.includeNullResult() && Objects.nonNull(result))) {
-                        lruCache.put(key, cacheValue);
+                if (evaluateCondition(proceedingJoinPoint, cache)) {
+                    String key = evaluateKey(proceedingJoinPoint, cache);
+                    CacheValue cacheValue = new CacheValue();
+                    cacheValue.setLastAccessTime(System.currentTimeMillis());
+                    cacheValue.setExprInSeconds(cache.unit().toSeconds(cache.expr()));
+                    cacheValue.setObject(result);
+                    if (cache.localTurbo()) {
+                        if ((cache.includeNullResult() && Objects.isNull(result)) || (!cache.includeNullResult() && Objects.nonNull(result))) {
+                            lruCache.put(key, cacheValue);
+                        }
                     }
-                }
-                if (Objects.nonNull(redisTemplate) && ((cache.includeNullResult() && Objects.isNull(result)) || (!cache.includeNullResult() && Objects.nonNull(result)))) {
-                    redisTemplate.opsForValue().set(key, JSON.toJSONString(cacheValue), cache.expr(), cache.unit());
+                    if (Objects.nonNull(redisTemplate) && ((cache.includeNullResult() && Objects.isNull(result)) || (!cache.includeNullResult() && Objects.nonNull(result)))) {
+                        redisTemplate.opsForValue().set(key, JSON.toJSONString(cacheValue), cache.expr(), cache.unit());
+                    }
                 }
             }
         }
@@ -136,7 +141,7 @@ public class CacheAspect {
     private void delCache(ProceedingJoinPoint proceedingJoinPoint, List<Cache> cacheList) {
         if (Objects.nonNull(cacheList) || cacheList.size() > 0) {
             cacheList.stream().forEach(singleCache -> {
-                String key = evaluateExpression(proceedingJoinPoint, singleCache);
+                String key = evaluateKey(proceedingJoinPoint, singleCache);
                 if (singleCache.localTurbo()) {
                     lruCache.remove(key);
                 }
@@ -147,26 +152,44 @@ public class CacheAspect {
         }
     }
 
-    private String evaluateExpression(ProceedingJoinPoint proceedingJoinPoint, Cache cache) {
+    private boolean evaluateCondition(ProceedingJoinPoint proceedingJoinPoint, Cache cache) {
+        if (Objects.nonNull(cache) && StringUtils.hasText(cache.condition())) {
+            try {
+                Boolean result = evaluate(proceedingJoinPoint, cache.condition(), Boolean.class);
+                if (Objects.nonNull(result)) {
+                    return result;
+                }
+            } catch (Exception e) {
+                log.warn("condition evaluate error，method->{}, error->{}", proceedingJoinPoint.getSignature().getName(), e);
+            }
+        }
+        return true;
+    }
+
+    private String evaluateKey(ProceedingJoinPoint proceedingJoinPoint, Cache cache) {
         if (Objects.nonNull(cache) && StringUtils.hasText(cache.key())) {
             try {
-                EvaluationContext context = new StandardEvaluationContext();
-                ExpressionParser parser = new SpelExpressionParser();
-                MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
-                Parameter[] ps = methodSignature.getMethod().getParameters();
-                if (ps != null) {
-                    for (int j = 0, l = ps.length; j < l; ++j) {
-                        context.setVariable(ps[j].getName(), proceedingJoinPoint.getArgs()[j]);
-                    }
-                }
+                String key = evaluate(proceedingJoinPoint, cache.key(), String.class);
                 String keyPrefix = cache.value();
-                String value = parser.parseExpression(cache.key()).getValue(context, String.class);
-                return keyPrefix + value;
+                return keyPrefix + key;
             } catch (Exception e) {
                 log.warn("cache annotation expression error using default key instead，method->{}, error->{}", proceedingJoinPoint.getSignature().getName(), e);
             }
         }
         return defaultKey(proceedingJoinPoint);
+    }
+
+    private <T> T evaluate(ProceedingJoinPoint proceedingJoinPoint, String expression, Class clazz) {
+        EvaluationContext context = new StandardEvaluationContext();
+        ExpressionParser parser = new SpelExpressionParser();
+        MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
+        Parameter[] ps = methodSignature.getMethod().getParameters();
+        if (ps != null) {
+            for (int j = 0, l = ps.length; j < l; ++j) {
+                context.setVariable(ps[j].getName(), proceedingJoinPoint.getArgs()[j]);
+            }
+        }
+        return (T) parser.parseExpression(expression).getValue(context, clazz);
     }
 
     private String defaultKey(ProceedingJoinPoint proceedingJoinPoint) {
@@ -178,7 +201,7 @@ public class CacheAspect {
 }
 
 @Data
-class CacheValue {
+class CacheValue implements Serializable {
     private Object object;
     private long lastAccessTime;
     private long exprInSeconds;

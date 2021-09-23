@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * @author xiuzhan.fu
- *
+ * <p>
  * 轻量级的切面缓存工具，支持任意超时时间及
  * EL表达式 ，防止springcache的缓存雪崩问题
  */
@@ -60,5 +60,11 @@ public @interface Cache {
      * @return
      */
     boolean includeNullResult() default false;
+
+    /**
+     *条件表达式
+     * @return
+     */
+    String condition() default "";
 }
 

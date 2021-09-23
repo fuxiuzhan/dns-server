@@ -11,8 +11,6 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author fxz
  */
@@ -32,7 +30,7 @@ public class TestController {
 
     @Monitor
     @GetMapping("/cache2")
-    @BatchCache(value = {@Cache(value = "com.fxz.dns:", key = "#id", expr = 10, unit = TimeUnit.MINUTES,localTurbo = false),
+    @BatchCache(value = {@Cache(value = "com.fxz.dns:", key = "#id",condition = "{#id eq '100'}"),
             @Cache(value = "com.fxz.dns:q:", key = "#id", expr = 10, localTurbo = true),
             @Cache(value = "com.fxz.dns:s", key = "#id", opType = CacheOpTypeEnum.SAVE), @Cache(expr = 5)})
     public String testCache2(String id) throws InterruptedException {
