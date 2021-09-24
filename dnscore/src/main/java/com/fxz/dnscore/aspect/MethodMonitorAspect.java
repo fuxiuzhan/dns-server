@@ -1,7 +1,10 @@
 package com.fxz.dnscore.aspect;
 
 import com.alibaba.fastjson.JSON;
+import com.fxz.dnscore.annotation.BatchCache;
+import com.fxz.dnscore.annotation.Cache;
 import com.fxz.dnscore.annotation.Monitor;
+import com.fxz.dnscore.common.enums.CacheOpTypeEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -30,11 +33,13 @@ public class MethodMonitorAspect {
     }
 
 
+    @BatchCache({@Cache(key = "111"),@Cache(key = "2222",opType = CacheOpTypeEnum.DELETE)})
+//    @BatchCache(caches = {@Cache(key = "111")})
     private Object process(ProceedingJoinPoint proceedingJoinPoint, boolean isAnno) throws Throwable {
         if (!monitorEnabled && !isAnno) {
             return proceedingJoinPoint.proceed();
         } else {
-            String className = proceedingJoinPoint.getTarget().getClass().getName();
+            String className = proceedingJoinPoint.getSignature().getDeclaringTypeName();
             MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
             boolean printParams = true;
             boolean printRtns = true;

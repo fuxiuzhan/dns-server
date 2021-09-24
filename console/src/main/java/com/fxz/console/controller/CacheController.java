@@ -32,7 +32,7 @@ public class CacheController {
 
     @PostMapping("/query")
     @Monitor
-    @Cache(value = "fxz.dns.console.cache.qry:",key = "{#host +':'+ #type}",expr = 1,unit = TimeUnit.HOURS)
+    @Cache(value = "fxz.dns.console.cache.qry:",key = "{#host +':'+ #type}",expr = 1,unit = TimeUnit.HOURS,includeNullResult = true)
     public List<BaseRecord> query(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             List<BaseRecord> baseRecordList1 = cacheOperate.get(host, type.toUpperCase());
