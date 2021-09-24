@@ -1,5 +1,7 @@
 package com.fxz.console.controller;
 
+import com.fxz.console.cache.Cache;
+import com.fxz.console.cache.CacheOpTypeEnum;
 import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.queerer.CacheOperate;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author fxz
@@ -29,6 +32,7 @@ public class CacheController {
 
     @PostMapping("/query")
     @Monitor
+    @Cache(value = "fxz.dns.console.cache.qry:",key = "{#host +':'+ #type}",expr = 1,unit = TimeUnit.HOURS)
     public List<BaseRecord> query(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             List<BaseRecord> baseRecordList1 = cacheOperate.get(host, type.toUpperCase());
@@ -39,6 +43,7 @@ public class CacheController {
 
     @PostMapping("/del")
     @Monitor
+    @Cache(value = "fxz.dns.console.cache.qry:",key = "{#host +':'+ #type}",opType = CacheOpTypeEnum.DELETE)
     public Boolean del(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             String key = CacheUtil.assembleKey(host, type.toUpperCase());
