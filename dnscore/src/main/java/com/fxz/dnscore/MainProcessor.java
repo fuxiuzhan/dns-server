@@ -103,6 +103,7 @@ public class MainProcessor {
             addAdditinals(query, response);
             response.retain();
             query.retain();
+            ctx.channel().writeAndFlush(response);
             ctx.writeAndFlush(response);
             export(ctx, query, response,processResult.getRecords());
         } else {

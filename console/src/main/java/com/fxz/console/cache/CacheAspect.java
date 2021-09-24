@@ -141,12 +141,14 @@ public class CacheAspect {
     private void delCache(ProceedingJoinPoint proceedingJoinPoint, List<Cache> cacheList) {
         if (Objects.nonNull(cacheList) || cacheList.size() > 0) {
             cacheList.stream().forEach(singleCache -> {
-                String key = evaluateKey(proceedingJoinPoint, singleCache);
-                if (singleCache.localTurbo()) {
-                    lruCache.remove(key);
-                }
-                if (Objects.nonNull(redisTemplate)) {
-                    redisTemplate.delete(key);
+                if (evaluateCondition(proceedingJoinPoint, singleCache)) {
+                    String key = evaluateKey(proceedingJoinPoint, singleCache);
+                    if (singleCache.localTurbo()) {
+                        lruCache.remove(key);
+                    }
+                    if (Objects.nonNull(redisTemplate)) {
+                        redisTemplate.delete(key);
+                    }
                 }
             });
         }
