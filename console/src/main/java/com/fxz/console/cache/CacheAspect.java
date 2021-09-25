@@ -102,12 +102,11 @@ public class CacheAspect {
                                 return localCacheValue;
                             }
                         }
-                    } else {
-                        if (Objects.nonNull(redisTemplate)) {
-                            Object o = redisTemplate.opsForValue().get(key);
-                            if (Objects.nonNull(o) && o instanceof String) {
-                                return JSON.parseObject(o + "", CacheValue.class);
-                            }
+                    }
+                    if (Objects.nonNull(redisTemplate)) {
+                        Object o = redisTemplate.opsForValue().get(key);
+                        if (Objects.nonNull(o) && o instanceof String) {
+                            return JSON.parseObject(o + "", CacheValue.class);
                         }
                     }
                 }
