@@ -79,7 +79,7 @@ public class ParentResolver implements Resolver, Query {
             }
             return null;
         });
-        ThreadPoolConfig.getThreadPool().execute(futureTask);
+        ThreadPoolConfig.getThreadPoolInstance().execute(futureTask);
         return futureTask;
     }
 

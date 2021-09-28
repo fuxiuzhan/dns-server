@@ -2,10 +2,7 @@ package com.fxz.dnscore.server;
 
 import com.fxz.dnscore.common.ThreadPoolConfig;
 import com.fxz.dnscore.common.utils.SortUtil;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -22,7 +19,7 @@ public class ServerManager {
 
     public void startAllServers() {
         for (LifeCycle server : serverList) {
-            ThreadPoolConfig.getThreadPool().execute(() -> {
+            ThreadPoolConfig.getThreadPoolInstance().execute(() -> {
                 try {
                     server.start();
                 } catch (InterruptedException e) {

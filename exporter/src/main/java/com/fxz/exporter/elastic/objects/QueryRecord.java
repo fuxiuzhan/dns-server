@@ -15,13 +15,20 @@ import java.util.Date;
 @Data
 @Document(indexName = "dns_query_record")
 public class QueryRecord implements Serializable {
-    private String serverName;
+    @Field(type = FieldType.Keyword)
+    private String appName;
+    @Field(type = FieldType.Keyword)
     private String id;
+    @Field(type = FieldType.Ip)
     private String ip;
+    @Field(type = FieldType.Keyword)
     private String host;
+    @Field(type = FieldType.Keyword)
     private String queryType;
     private Integer answerCnt;
-    private String date;
+    @Field(type = FieldType.Keyword)
+    private String dateStr;
+    @Field(format = DateFormat.basic_date_time)
+    private Date date;
     private String res;
-    private long timeMillis;
 }

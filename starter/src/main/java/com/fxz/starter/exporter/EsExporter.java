@@ -33,10 +33,10 @@ public class EsExporter implements Exporter {
     String appName;
     AtomicLong counter = new AtomicLong(0);
 
-    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String dnsServerName) {
+    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String appName) {
         this.recordRepository = recordRepository;
         this.sourceRepository = sourceRepository;
-        this.dnsServerName = dnsServerName;
+        this.appName = appName;
     }
 
     @Override
@@ -64,7 +64,7 @@ public class EsExporter implements Exporter {
              * record history
              */
             QueryRecord queryRecord = new QueryRecord();
-            queryRecord.setServerName(dnsServerName);
+            queryRecord.setAppName(appName);
             queryRecord.setId(System.currentTimeMillis() + "_" + counter.getAndIncrement());
             queryRecord.setAnswerCnt(records.size());
             queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
@@ -94,7 +94,8 @@ public class EsExporter implements Exporter {
             sourceRecord.setResult(JSON.toJSONString(records));
             sourceRecord.setLastAccess(new Date());
             sourceRecord.setAnswerCnt(records.size());
-            sourceRecord.setServerName(dnsServerName);
+            sourceRecord.setAppName(appName);
+            sourceRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
             sourceRepository.save(sourceRecord);
         }
     }

@@ -15,13 +15,20 @@ import java.util.Date;
 @Data
 @Document(indexName = "dns_source")
 public class SourceRecord implements Serializable {
-    private String serverName;
+    @Field(type = FieldType.Keyword)
+    private String appName;
+    @Field(type = FieldType.Keyword)
     private String id;
     @Field(type = FieldType.Keyword)
     private String host;
     private String result;
+    @Field(type = FieldType.Keyword)
     private String queryType;
-    private Integer counter;
-    private Long lastAccess;
+    @Field(type = FieldType.Keyword)
+    private Integer cnt;
+    @Field(format = DateFormat.basic_date_time)
+    private Date lastAccess;
+    @Field(type = FieldType.Keyword)
+    private String dateStr;
     private Integer answerCnt;
 }

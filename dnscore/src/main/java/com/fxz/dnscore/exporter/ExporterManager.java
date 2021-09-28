@@ -23,7 +23,7 @@ public class ExporterManager {
     }
 
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
-        ThreadPoolConfig.getThreadPool().execute(() -> {
+        ThreadPoolConfig.getThreadPoolInstance().execute(() -> {
             for (Exporter exporter : exporterList) {
                 try {
                     exporter.export(ctx, query, response, records);

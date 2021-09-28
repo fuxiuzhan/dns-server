@@ -14,9 +14,16 @@ public class ThreadPoolConfig {
     static AtomicLong counter = new AtomicLong(0);
     static final int CORE_THREADS = Math.max(16, Runtime.getRuntime().availableProcessors() * 4);
     static final String THREAD_POOL_PREFIX = "common-";
+    static ThreadPoolExecutor singleThreadPoolInstance = null;
+    static {
+        singleThreadPoolInstance = getThreadPool();
+    }
 
-    public static ThreadPoolExecutor getThreadPool() {
+    public static ThreadPoolExecutor getThreadPoolInstance() {
+        return singleThreadPoolInstance;
+    }
 
+    private static ThreadPoolExecutor getThreadPool() {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
