@@ -1,5 +1,6 @@
 package com.fxz.console.feign;
 
+import com.netflix.loadbalancer.AbstractLoadBalancerRule;
 import com.netflix.loadbalancer.PollingServerListUpdater;
 import com.netflix.loadbalancer.ServerList;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
@@ -25,5 +26,15 @@ public class AutoConfig {
             serverList.getUpdatedListOfServers();
         });
         return updater;
+    }
+
+    @Bean
+    public AbstractLoadBalancerRule balancer() {
+        return new TestBalance();
+    }
+
+    @Bean("testInterceptor")
+    public TestInterceptor loadBalancerInterceptor() {
+        return new TestInterceptor();
     }
 }

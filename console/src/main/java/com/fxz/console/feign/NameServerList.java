@@ -6,6 +6,9 @@ import com.netflix.loadbalancer.ServerList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * @author fxz
+ */
 public class NameServerList implements ServerList {
     @Override
     public List<Server> getInitialListOfServers() {
