@@ -1,8 +1,10 @@
 package com.fxz.console.feign;
 
+import com.netflix.client.config.IClientConfig;
 import com.netflix.loadbalancer.AbstractLoadBalancerRule;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.Server;
+import com.netflix.loadbalancer.ServerList;
 
 import java.util.List;
 
@@ -10,9 +12,19 @@ import java.util.List;
  * @author fxz
  */
 public class TestBalance extends AbstractLoadBalancerRule implements ILoadBalancer {
+
+    private String testrouteKey = "baidu";
+
+    private ServerList<Server> serverListl;
+
+    public TestBalance(ServerList serverList) {
+        this.serverListl = serverList;
+    }
+
     @Override
     public Server choose(Object key) {
-        return getLoadBalancer().chooseServer(key);
+        String defaultId = key == null ? testrouteKey : key.toString();
+        return serverListl.getInitialListOfServers().stream().filter(s -> s.getMetaInfo().getInstanceId().equalsIgnoreCase(defaultId)).findFirst().get();
     }
 
     @Override
@@ -22,8 +34,7 @@ public class TestBalance extends AbstractLoadBalancerRule implements ILoadBalanc
 
     @Override
     public Server chooseServer(Object key) {
-        System.out.println("chooseServer");
-        return null;
+        return choose(key);
     }
 
     @Override
@@ -44,5 +55,10 @@ public class TestBalance extends AbstractLoadBalancerRule implements ILoadBalanc
     @Override
     public List<Server> getAllServers() {
         return null;
+    }
+
+    @Override
+    public void initWithNiwsConfig(IClientConfig iClientConfig) {
+
     }
 }

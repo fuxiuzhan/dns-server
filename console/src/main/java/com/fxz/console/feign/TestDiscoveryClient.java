@@ -25,6 +25,10 @@ public class TestDiscoveryClient implements DiscoveryClient {
         return null;
     }
 
+    public ServiceInstance getLocalServiceInstance() {
+        return null;
+    }
+
     @Override
     public List<ServiceInstance> getInstances(String serviceId) {
         List<ServiceInstance> serviceInstances = new ArrayList<>();

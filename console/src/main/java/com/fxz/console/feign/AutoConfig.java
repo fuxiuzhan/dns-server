@@ -29,8 +29,8 @@ public class AutoConfig {
     }
 
     @Bean
-    public AbstractLoadBalancerRule balancer() {
-        return new TestBalance();
+    public AbstractLoadBalancerRule balancer(ServerList serverList) {
+        return new TestBalance(serverList);
     }
 
     @Bean("testInterceptor")
