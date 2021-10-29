@@ -186,7 +186,8 @@ public class CacheAspect {
         MethodSignature methodSignature = (MethodSignature) proceedingJoinPoint.getSignature();
         Parameter[] ps = methodSignature.getMethod().getParameters();
         if (ps != null) {
-            //此处增加 #root.method.name,#root.method.params ....等固定变量列表，以增加表达式的灵活性
+            //此处增加 #root.methodName,#root.params.size() ....等固定变量列表，以增加表达式的灵活性
+            //class Root(){String methodName,Object[] params,Map<Object,Object> extendVarMap=new HashMap/**初始化时可放入预设的环境变量以扩展表达式的变量范围*/;}
             for (int j = 0, l = ps.length; j < l; ++j) {
                 context.setVariable(ps[j].getName(), proceedingJoinPoint.getArgs()[j]);
             }
