@@ -169,6 +169,7 @@ public class AutoConfig {
     public ServerManager injectServerManager(@Autowired List<LifeCycle> serverList) {
         ServerManager serverManager = new ServerManager();
         serverManager.setServerList(serverList);
+        serverManager.startAllServers();
         return serverManager;
     }
 

@@ -6,7 +6,6 @@
         <groupId>com.fxz</groupId>
         <artifactId>dns-server</artifactId>
         <version>0.0.1-SNAPSHOT</version>
-        <relativePath/>
     </parent>
     <groupId>com.fxz</groupId>
     <artifactId>queerer</artifactId>
