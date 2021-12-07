@@ -5,12 +5,11 @@
     <parent>
         <groupId>com.fxz</groupId>
         <artifactId>dns-server</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-        <relativePath/>
+        <version>0.0.1</version>
     </parent>
     <groupId>com.fxz</groupId>
     <artifactId>starter</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>starter</name>
     <description>Demo project for Spring Boot</description>
     <properties>
@@ -46,17 +45,17 @@
         <dependency>
             <groupId>com.fxz</groupId>
             <artifactId>exporter</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.fxz</groupId>
             <artifactId>queerer</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.fxz</groupId>
             <artifactId>dnscore</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1</version>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -66,24 +65,5 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
         </dependency>
-
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
 </project>
