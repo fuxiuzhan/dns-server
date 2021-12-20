@@ -19,12 +19,12 @@ ENV SERVER="inner.lite.fuled.xyz:11800"
 
 ENV JAVA_OPTS="-Denv=prd"
 
-RUN curl -o apache-skywalking-apm-8.7.0.tar.gz  https://archive.apache.org/dist/skywalking/8.7.0/apache-skywalking-apm-8.7.0.tar.gz && \
-    gzip -d apache-skywalking-apm-8.7.0.tar.gz && \
-    tar -xvf apache-skywalking-apm-8.7.0.tar && \
-    rm  apache-skywalking-apm-8.7.0.tar
+RUN curl -o apache-skywalking-apm-es7-8.3.0.tar.gz  https://archive.apache.org/dist/skywalking/8.3.0/apache-skywalking-apm-es7-8.3.0.tar.gz && \
+    gzip -d apache-skywalking-apm-es7-8.3.0.tar.gz && \
+    tar -xvf apache-skywalking-apm-es7-8.3.0.tar && \
+    rm  apache-skywalking-apm-es7-8.3.0.tar
 
-ENV AGENTPATH="/fxz/apps/apache-skywalking-apm-bin/agent/skywalking-agent.jar"
+ENV AGENTPATH="/fxz/apps/apache-skywalking-apm-bin-es7/agent/skywalking-agent.jar"
 
 EXPOSE 8080/tcp
 
@@ -36,6 +36,8 @@ VOLUME ["/data"]
 
 RUN echo "java -javaagent:$AGENTPATH -Dskywalking.agent.service_name=$APPNAME -Dskywalking.collector.backend_service=$SERVER $JAVA_OPTS  -jar $APPNAME-$VERSION.jar" > start.sh
 
+
+RUN cat start.sh
 
 RUN chmod +x start.sh
 
