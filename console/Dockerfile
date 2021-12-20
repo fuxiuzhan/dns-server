@@ -1,6 +1,9 @@
-FROM adoptopenjdk/openjdk8
+FROM centos
 
 MAINTAINER fuxiuzhan@163.com
+
+RUN yum update -y && \
+    yum install -y java
 
 ADD ./target/*.jar /fxz/apps/
 
