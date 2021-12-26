@@ -97,7 +97,7 @@ public class AutoConfig {
         parentResolver.setResolveTimeOut(resolveTimeOut);
         parentResolver.setCacheOperates(cacheOperates);
         queryList.add(parentResolver);
-        queryList = SortUtil.sort(queryList);
+        SortUtil.sort(queryList);
         return parentResolver;
     }
 
