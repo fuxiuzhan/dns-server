@@ -17,7 +17,7 @@ ENV VERSION=0.0.1
 
 ENV PATH=$PATH:/fxz/apps/
 
-ENV SERVER="inner.lite.fuled.xyz:11800"
+ENV SERVER="inner.main.fuled.xyz:11800"
 
 ENV JAVA_OPTS="-Denv=prd"
 
