@@ -34,8 +34,8 @@ CMD ["mkdir /data"]
 
 VOLUME ["/data"]
 
-RUN echo "java -javaagent:$AGENTPATH -Dskywalking.agent.service_name=$APPNAME -Dskywalking.collector.backend_service=$SERVER $JAVA_OPTS  -jar $APPNAME-$VERSION.jar" > start.sh
 
+RUN echo "java -javaagent:$AGENTPATH -Dskywalking.agent.service_name=$APPNAME -Dagent.sample_n_per_3_secs=10000 -Dskywalking.collector.backend_service=$SERVER $JAVA_OPTS  -jar $APPNAME-$VERSION.jar" > start.sh
 
 RUN cat start.sh
 
