@@ -1,11 +1,11 @@
 package com.fxz.dnscore;
 
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.exporter.ExporterManager;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ProcessResult;
 import com.fxz.dnscore.processor.Processor;
 import com.fxz.dnscore.processor.ProcessorManger;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.*;
 import lombok.extern.slf4j.Slf4j;

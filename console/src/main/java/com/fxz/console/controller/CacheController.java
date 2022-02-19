@@ -1,6 +1,5 @@
 package com.fxz.console.controller;
 
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.util.CacheUtil;
@@ -28,7 +27,6 @@ public class CacheController {
     RedisTemplate redisTemplate;
 
     @PostMapping("/query")
-    @Monitor
     public List<BaseRecord> query(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             List<BaseRecord> baseRecordList1 = cacheOperate.get(host, type.toUpperCase());
@@ -38,7 +36,6 @@ public class CacheController {
     }
 
     @PostMapping("/del")
-    @Monitor
     public Boolean del(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             String key = CacheUtil.assembleKey(host, type.toUpperCase());
@@ -48,7 +45,6 @@ public class CacheController {
     }
 
     @PostMapping("/update")
-    @Monitor
     public Boolean update(String host, String type, String recordList, Integer ttl) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type) && StringUtils.hasText(recordList) && ttl != null && ttl > 0) {
             List<BaseRecord> baseRecordList = ConvertUtil.decodeBaseRecordFromString(recordList);

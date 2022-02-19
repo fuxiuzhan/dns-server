@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 如果自行编码也可以借助RedisTemplate 编码能力
+ * <p>
+ * 自行编码的方式更加通用
+ *
  * @author fxz
  */
 public class RedisCache implements CacheOperate {

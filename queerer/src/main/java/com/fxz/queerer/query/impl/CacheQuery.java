@@ -1,6 +1,5 @@
 package com.fxz.queerer.query.impl;
 
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.queerer.Query;
@@ -28,7 +27,6 @@ public class CacheQuery implements Query {
     }
 
     @Override
-    @Monitor
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         return cacheOperate.get(question.name(), question.type());
     }

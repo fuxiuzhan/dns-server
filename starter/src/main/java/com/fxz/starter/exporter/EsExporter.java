@@ -1,7 +1,6 @@
 package com.fxz.starter.exporter;
 
 import com.alibaba.fastjson.JSON;
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.objects.BaseRecord;
@@ -45,7 +44,6 @@ public class EsExporter implements Exporter {
     }
 
     @Override
-    @Monitor
     /**
      * TODO
      * consider separate caching and logging
