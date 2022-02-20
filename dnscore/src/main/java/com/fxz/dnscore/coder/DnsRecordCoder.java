@@ -11,9 +11,6 @@ import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.util.NetUtil;
 import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.Map;
-
 public class DnsRecordCoder {
 
     /**
@@ -235,12 +232,6 @@ public class DnsRecordCoder {
         DefaultDnsRawRecord queryAnswer = new DefaultDnsRawRecord(host, type, ttl, context);
         return queryAnswer;
     }
-
-
-    public static DefaultDnsRawRecord assembleSOA() {
-        return assembleSOA("www.baidu.com", 1000, "www.baidu.com", "master.mail.baidu.com", 10, 10, 30, 30, 10);
-    }
-
 
     public static String decodeSingle(byte[] rawData, ByteBuf content) {
         ByteBuf buffer = Unpooled.buffer(content.readableBytes());
