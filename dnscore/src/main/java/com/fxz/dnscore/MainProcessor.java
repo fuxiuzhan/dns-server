@@ -9,6 +9,7 @@ import com.fxz.fuled.logger.starter.annotation.Monitor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ public class MainProcessor {
     }
 
 
+    @Trace
     public void reject(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         log.warn("rejected closing...");
         ctx.close();
@@ -53,6 +55,7 @@ public class MainProcessor {
      * @param query
      * @param response
      */
+    @Trace
     public void addAuthorities(DatagramDnsQuery query, DatagramDnsResponse response) {
     }
 
@@ -61,6 +64,7 @@ public class MainProcessor {
      * @param query
      * @param response
      */
+    @Trace
     public void addAdditions(DatagramDnsQuery query, DatagramDnsResponse response) {
         //response.addRecord(DnsSection.ADDITIONAL, DnsRecordCoder.assembleCNAME(query.recordAt(DnsSection.QUESTION).name(), 10, "c.name.com"));
     }
@@ -70,6 +74,7 @@ public class MainProcessor {
      * @param query
      * @param response
      */
+    @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         exporterManager.export(ctx, query, response, records);
     }
@@ -78,6 +83,7 @@ public class MainProcessor {
      * @param ctx
      * @param query
      */
+    @Trace
     @Monitor
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {

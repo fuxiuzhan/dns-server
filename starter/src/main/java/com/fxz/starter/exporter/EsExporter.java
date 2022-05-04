@@ -14,6 +14,8 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
 import io.netty.handler.codec.dns.DnsSection;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -51,7 +53,9 @@ public class EsExporter implements Exporter {
      * caching process immediately
      * logging scheduled and batching
      */
+    @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
+        ActiveSpan.tag("class", EsExporter.class.getName());
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"
                 , name()
                 , query.sender().getAddress().getHostAddress(), query.recordAt(DnsSection.QUESTION).type().name()
@@ -73,6 +77,16 @@ public class EsExporter implements Exporter {
             queryRecord.setDate(new Date());
             queryRecord.setRes(JSON.toJSONString(records));
             recordRepository.save(queryRecord);
+            ActiveSpan.tag("recordType", "QueryRecord");
+            ActiveSpan.tag("appName", appName);
+            ActiveSpan.tag("id", queryRecord.getId());
+            ActiveSpan.tag("answerCnt", queryRecord.getAnswerCnt() + "");
+            ActiveSpan.tag("host", queryRecord.getHost());
+            ActiveSpan.tag("ip", queryRecord.getIp());
+            ActiveSpan.tag("queryType", queryRecord.getQueryType());
+            ActiveSpan.tag("date", queryRecord.getDateStr());
+            ActiveSpan.tag("res", queryRecord.getRes());
+
             /**
              * record source
              */
