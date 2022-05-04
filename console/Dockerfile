@@ -13,6 +13,8 @@ WORKDIR /fxz/apps/
 
 ENV APPNAME="console"
 
+ENV docker.env=true
+
 ENV VERSION=0.0.1
 
 ENV PATH=$PATH:/fxz/apps/
@@ -38,8 +40,6 @@ VOLUME ["/data"]
 
 
 RUN echo "java -javaagent:$AGENTPATH -Dskywalking.agent.service_name=$APPNAME -Dagent.sample_n_per_3_secs=10000 -Dskywalking.collector.backend_service=$SERVER $JAVA_OPTS  -jar $APPNAME-$VERSION.jar" > start.sh
-
-RUN cat start.sh
 
 RUN chmod +x start.sh
 

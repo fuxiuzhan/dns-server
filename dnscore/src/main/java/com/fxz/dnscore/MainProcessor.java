@@ -70,8 +70,8 @@ public class MainProcessor {
      * @param query
      * @param response
      */
-    public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response,List<BaseRecord> records) {
-        exporterManager.export(ctx, query, response,records);
+    public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
+        exporterManager.export(ctx, query, response, records);
     }
 
     /**
@@ -104,7 +104,7 @@ public class MainProcessor {
             response.retain();
             query.retain();
             ctx.writeAndFlush(response);
-            export(ctx, query, response,processResult.getRecords());
+            export(ctx, query, response, processResult.getRecords());
         } else {
             reject(ctx, query);
         }
