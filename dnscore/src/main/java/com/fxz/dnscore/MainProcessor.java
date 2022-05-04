@@ -53,7 +53,7 @@ public class MainProcessor {
      * @param query
      * @param response
      */
-    public void addAuthoritys(DatagramDnsQuery query, DatagramDnsResponse response) {
+    public void addAuthorities(DatagramDnsQuery query, DatagramDnsResponse response) {
     }
 
 
@@ -61,7 +61,7 @@ public class MainProcessor {
      * @param query
      * @param response
      */
-    public void addAdditinals(DatagramDnsQuery query, DatagramDnsResponse response) {
+    public void addAdditions(DatagramDnsQuery query, DatagramDnsResponse response) {
         //response.addRecord(DnsSection.ADDITIONAL, DnsRecordCoder.assembleCNAME(query.recordAt(DnsSection.QUESTION).name(), 10, "c.name.com"));
     }
 
@@ -99,8 +99,8 @@ public class MainProcessor {
                     response.addRecord(DnsSection.ANSWER, processResult.getRawRecords().get(i));
                 }
             }
-            addAuthoritys(query, response);
-            addAdditinals(query, response);
+            addAuthorities(query, response);
+            addAdditions(query, response);
             response.retain();
             query.retain();
             ctx.writeAndFlush(response);
