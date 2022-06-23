@@ -1,5 +1,7 @@
 package com.fxz.dnscore.common;
 
+import com.fxz.fuled.threadpool.monitor.ThreadPoolRegistry;
+
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -15,6 +17,7 @@ public class ThreadPoolConfig {
     static final int CORE_THREADS = Math.max(16, Runtime.getRuntime().availableProcessors() * 4);
     static final String THREAD_POOL_PREFIX = "common-";
     static ThreadPoolExecutor singleThreadPoolInstance = null;
+
     static {
         singleThreadPoolInstance = getThreadPool();
     }
@@ -34,6 +37,7 @@ public class ThreadPoolConfig {
             }
         });
         executor.allowCoreThreadTimeOut(true);
+        ThreadPoolRegistry.registerThreadPool("dns-export-thread-pool", executor);
         return executor;
     }
 
