@@ -1,5 +1,6 @@
 package com.fxz.dnscore.common;
 
+import com.fxz.fuled.common.utils.ThreadFactoryNamed;
 import com.fxz.fuled.threadpool.monitor.ThreadPoolRegistry;
 
 import java.util.concurrent.ArrayBlockingQueue;
@@ -27,15 +28,7 @@ public class ThreadPoolConfig {
     }
 
     private static ThreadPoolExecutor getThreadPool() {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread thread = new Thread(r);
-                thread.setDaemon(true);
-                thread.setName(THREAD_POOL_PREFIX + counter.getAndIncrement());
-                return thread;
-            }
-        });
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), ThreadFactoryNamed.named(THREAD_POOL_PREFIX));
         executor.allowCoreThreadTimeOut(true);
         ThreadPoolRegistry.registerThreadPool("dns-export-thread-pool", executor);
         return executor;
