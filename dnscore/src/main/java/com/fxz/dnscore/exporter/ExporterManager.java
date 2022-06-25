@@ -26,7 +26,7 @@ public class ExporterManager {
 
     @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
-        ThreadPoolConfig.getThreadPoolInstance().execute(() -> {
+        ThreadPoolConfig.getThreadPoolInstance().execute(RunnableWrapper.of(() -> {
             for (Exporter exporter : exporterList) {
                 try {
                     exporter.export(ctx, query, response, records);
@@ -40,6 +40,6 @@ public class ExporterManager {
             } catch (Exception e) {
                 log.error("release error ->{}", e);
             }
-        });
+        }));
     }
 }
