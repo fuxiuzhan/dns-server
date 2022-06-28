@@ -27,7 +27,7 @@ public class ThreadPoolConfig {
     private static ThreadPoolExecutor getThreadPool() {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), ThreadFactoryNamed.named(THREAD_POOL_PREFIX));
         executor.allowCoreThreadTimeOut(true);
-//        ThreadPoolRegistry.registerThreadPool("dns-export-thread-pool", executor);
+        ThreadPoolRegistry.registerThreadPool("dns-export-thread-pool", executor);
         return executor;
     }
 
