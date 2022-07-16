@@ -1,7 +1,7 @@
 package com.fxz.dnscore.common;
 
 import com.fxz.fuled.common.utils.ThreadFactoryNamed;
-import com.fxz.fuled.threadpool.monitor.ThreadPoolRegistry;
+import com.fxz.fuled.dynamic.threadpool.ThreadPoolRegistry;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
