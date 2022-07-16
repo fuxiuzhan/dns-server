@@ -9,6 +9,7 @@ import io.netty.handler.codec.dns.DnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
 import io.netty.util.NetUtil;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 import org.springframework.util.StringUtils;
 
 public class DnsRecordCoder {
@@ -29,6 +30,7 @@ public class DnsRecordCoder {
         return assembleBase(host, DnsRecordType.A, ttl, NetUtil.createByteArrayFromIpAddressString(ip));
     }
 
+    @Trace
     public static ARecord decodeA(DnsRecord dnsRecord) {
         ByteBuf byteBuf = ((DnsRawRecord) dnsRecord).content();
         ARecord aRecord = new ARecord();
