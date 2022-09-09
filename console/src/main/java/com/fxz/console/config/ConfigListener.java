@@ -8,16 +8,15 @@ import com.fxz.fuled.config.starter.model.ConfigChangeEvent;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.util.CacheUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -43,30 +42,39 @@ public class ConfigListener {
                         if (StringUtils.hasText(oldValue)) {
                             for (String s : oldValue.split("\\,")) {
                                 if (StringUtils.hasText(s)) {
-                                    redisTemplate.delete(CacheUtil.assembleKey(s, "A"));
+                                    redisTemplate.delete(CacheUtil.assembleKey(s + ".", "A"));
                                 }
                             }
                         }
                     }
             );
-            //add new
-            if (!CollectionUtils.isEmpty(persistProperties.getConfig())) {
-                for (Map.Entry<String, String> stringStringEntry : persistProperties.getConfig().entrySet()) {
-                    if (StringUtils.hasText(stringStringEntry.getValue())) {
-                        for (String s : stringStringEntry.getValue().split("\\,")) {
-                            if (StringUtils.hasText(s)) {
-                                ARecord aRecord = new ARecord();
-                                aRecord.setHost(s + ".");
-                                aRecord.setType("A");
-                                aRecord.setIpV4(stringStringEntry.getKey().replace("_", "."));
-                                aRecord.setTtl(Integer.MAX_VALUE);
-                                redisTemplate.opsForValue().set("A_" + s + ".", JSON.toJSONString(Arrays.asList(aRecord)));
-                            }
+        }
+        restore();
+    }
+
+    @PostConstruct
+    public void init() {
+        restore();
+    }
+
+    private void restore() {
+        //add new
+        if (!CollectionUtils.isEmpty(persistProperties.getConfig())) {
+            for (Map.Entry<String, String> stringStringEntry : persistProperties.getConfig().entrySet()) {
+                if (StringUtils.hasText(stringStringEntry.getValue())) {
+                    for (String s : stringStringEntry.getValue().split("\\,")) {
+                        if (StringUtils.hasText(s)) {
+                            ARecord aRecord = new ARecord();
+                            aRecord.setHost(s + ".");
+                            aRecord.setType("A");
+                            aRecord.setIpV4(stringStringEntry.getKey().replace("_", "."));
+                            aRecord.setTtl(600);
+                            redisTemplate.opsForValue().set("A_" + s + ".", JSON.toJSONString(Arrays.asList(aRecord)));
                         }
                     }
                 }
             }
-            //aRecord.set
         }
+        //aRecord.set
     }
 }
