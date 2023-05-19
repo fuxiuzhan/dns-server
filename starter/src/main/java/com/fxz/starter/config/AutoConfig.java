@@ -28,6 +28,7 @@ import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
 import com.fxz.starter.queerer.EsQuery;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -136,8 +137,8 @@ public class AutoConfig {
 
     @Bean
     @ConditionalOnClass({BaseRecordRepository.class, BaseSourceRepository.class})
-    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository) {
-        return new EsExporter(recordRepository, sourceRepository, dnsServerName);
+    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository, @Autowired RestHighLevelClient highLevelClient) {
+        return new EsExporter(recordRepository, sourceRepository, dnsServerName, highLevelClient);
     }
 
     @Bean

@@ -71,6 +71,7 @@ public class ParentResolver implements Resolver, Query {
         Constant.singleMap.put(query.id(), responseSemaphoreStorage);
         dnsClient.getChannel().writeAndFlush(query).addListener(f -> {
             if (!f.isSuccess()) {
+                Constant.singleMap.remove(query.id());
                 log.error("query completed ,but error");
             }
         });
@@ -127,7 +128,7 @@ public class ParentResolver implements Resolver, Query {
         for (String serverAddr : domainServers) {
             ActiveSpan.tag("query.dns.server", serverAddr);
             InetSocketAddress addr = new InetSocketAddress(serverAddr, DNS_SERVER_PORT);
-            DatagramDnsQuery query = new DatagramDnsQuery(null, addr, (int) (counter.getAndIncrement() % 1000)).setRecord(
+            DatagramDnsQuery query = new DatagramDnsQuery(null, addr, (int) (counter.getAndIncrement() % Integer.MAX_VALUE)).setRecord(
                     DnsSection.QUESTION,
                     new DefaultDnsQuestion(question.name(), question.type()));
             query.setRecursionDesired(true);
