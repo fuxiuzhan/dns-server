@@ -99,6 +99,9 @@ public class MainProcessor {
                 processResult = processorMap.get(defaultType).process(question);
             }
             DatagramDnsResponse response = new DatagramDnsResponse(query.recipient(), query.sender(), query.id());
+            response.setRecursionDesired(query.isRecursionDesired());
+            response.setAuthoritativeAnswer(query.isRecursionDesired());
+            response.setRecursionAvailable(query.isRecursionDesired());
             response.addRecord(DnsSection.QUESTION, question);
             if (processResult.getRawRecords() != null && processResult.getRawRecords().size() > 0) {
                 for (int i = 0; i < processResult.getRawRecords().size(); i++) {
