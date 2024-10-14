@@ -1,6 +1,5 @@
 package com.fxz.console.controller;
 
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.SourceRecord;
@@ -26,7 +25,6 @@ public class StorageController {
     BaseSourceRepository baseSourceRepository;
 
     @PostMapping("/query")
-    @Monitor
     public List<BaseRecord> query(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             String key = CacheUtil.assembleKey(host, type.toUpperCase());
@@ -40,7 +38,6 @@ public class StorageController {
     }
 
     @PostMapping("/del")
-    @Monitor
     public Boolean del(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             String key = CacheUtil.assembleKey(host, type.toUpperCase());
