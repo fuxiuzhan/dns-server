@@ -10,6 +10,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.toolkit.trace.Trace;
+import org.springframework.beans.factory.InitializingBean;
 
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,7 @@ import java.util.Map;
  * @author fxz
  */
 @Slf4j
-public class MainProcessor {
+public class MainProcessor implements InitializingBean {
 
     ExporterManager exporterManager;
 
@@ -33,8 +34,6 @@ public class MainProcessor {
     }
 
     private Map<DnsRecordType, Processor> processorMap;
-
-    private DnsRecordType defaultType = DnsRecordType.SOA;
 
     public void setProcessorMap(Map<DnsRecordType, Processor> processorMap) {
         this.processorMap = processorMap;
@@ -88,16 +87,8 @@ public class MainProcessor {
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {
             DefaultDnsQuestion question = query.recordAt(DnsSection.QUESTION);
-            if (processorMap == null) {
-                processorMap = processorManger.getProcessorMap();
-            }
-            Processor processor = processorMap.get(question.type());
-            ProcessResult processResult;
-            if (processor != null) {
-                processResult = processor.process(question);
-            } else {
-                processResult = processorMap.get(defaultType).process(question);
-            }
+            Processor processor = processorMap.getOrDefault(question.type(), processorMap.get(DnsRecordType.A));
+            ProcessResult processResult = processor.process(question);
             DatagramDnsResponse response = new DatagramDnsResponse(query.recipient(), query.sender(), query.id());
             response.setRecursionDesired(query.isRecursionDesired());
             response.setAuthoritativeAnswer(query.isRecursionDesired());
@@ -117,5 +108,10 @@ public class MainProcessor {
         } else {
             reject(ctx, query);
         }
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        processorMap = processorManger.getProcessorMap();
     }
 }
