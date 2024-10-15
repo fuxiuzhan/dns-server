@@ -1,7 +1,6 @@
 package com.fxz.dnscore.processor.impl;
 
 import com.fxz.dnscore.coder.DnsRecordCoder;
-import com.fxz.dnscore.objects.ARecord;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.TXTRecord;
 import com.fxz.dnscore.processor.AbstractProcessor;
@@ -9,6 +8,7 @@ import com.fxz.dnscore.queerer.QueryManger;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +24,8 @@ public class TXTProcessor extends AbstractProcessor {
         setQueryManger(this.queryManger);
     }
 
+
+    @Trace
     @Override
     public List<DefaultDnsRawRecord> assemble(List<BaseRecord> records) {
         List<DefaultDnsRawRecord> recordList = new ArrayList<>();

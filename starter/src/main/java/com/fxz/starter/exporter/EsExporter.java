@@ -1,7 +1,6 @@
 package com.fxz.starter.exporter;
 
 import com.alibaba.fastjson.JSON;
-import com.fxz.dnscore.annotation.Monitor;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.objects.BaseRecord;
@@ -15,10 +14,21 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
 import io.netty.handler.codec.dns.DnsSection;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,10 +43,13 @@ public class EsExporter implements Exporter {
     String appName;
     AtomicLong counter = new AtomicLong(0);
 
-    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String appName) {
+    RestHighLevelClient highLevelClient;
+
+    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String appName, RestHighLevelClient highLevelClient) {
         this.recordRepository = recordRepository;
         this.sourceRepository = sourceRepository;
         this.appName = appName;
+        this.highLevelClient = highLevelClient;
     }
 
     @Override
@@ -45,7 +58,6 @@ public class EsExporter implements Exporter {
     }
 
     @Override
-    @Monitor
     /**
      * TODO
      * consider separate caching and logging
@@ -53,7 +65,9 @@ public class EsExporter implements Exporter {
      * caching process immediately
      * logging scheduled and batching
      */
+    @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
+        ActiveSpan.tag("class", EsExporter.class.getName());
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"
                 , name()
                 , query.sender().getAddress().getHostAddress(), query.recordAt(DnsSection.QUESTION).type().name()
@@ -74,7 +88,25 @@ public class EsExporter implements Exporter {
             queryRecord.setDateStr(formatter.format(new Date()));
             queryRecord.setDate(new Date());
             queryRecord.setRes(JSON.toJSONString(records));
-            recordRepository.save(queryRecord);
+            IndexRequest queryIndexRequest = new IndexRequest(indexName(queryRecord));
+            queryIndexRequest.id(queryRecord.getId());
+            queryIndexRequest.source(JSON.toJSONString(queryRecord), XContentType.JSON);
+            try {
+                highLevelClient.index(queryIndexRequest, RequestOptions.DEFAULT);
+            } catch (IOException e) {
+                log.error("flush es error->{}", e);
+            }
+//            recordRepository.save(queryRecord);
+            ActiveSpan.tag("recordType", "QueryRecord");
+            ActiveSpan.tag("appName", appName);
+            ActiveSpan.tag("id", queryRecord.getId());
+            ActiveSpan.tag("answerCnt", queryRecord.getAnswerCnt() + "");
+            ActiveSpan.tag("host", queryRecord.getHost());
+            ActiveSpan.tag("ip", queryRecord.getIp());
+            ActiveSpan.tag("queryType", queryRecord.getQueryType());
+            ActiveSpan.tag("date", queryRecord.getDateStr());
+            ActiveSpan.tag("res", queryRecord.getRes());
+
             /**
              * record source
              */
@@ -96,7 +128,23 @@ public class EsExporter implements Exporter {
             sourceRecord.setAnswerCnt(records.size());
             sourceRecord.setAppName(appName);
             sourceRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
-            sourceRepository.save(sourceRecord);
+            IndexRequest sourceIndexRequest = new IndexRequest(indexName(sourceRecord));
+            sourceIndexRequest.id(sourceRecord.getId());
+            sourceIndexRequest.source(JSON.toJSONString(sourceRecord), XContentType.JSON);
+            try {
+                highLevelClient.index(sourceIndexRequest, RequestOptions.DEFAULT);
+            } catch (IOException e) {
+                log.error("flush es error->{}", e);
+            }
+//            sourceRepository.save(sourceRecord);
         }
+    }
+
+    private String indexName(Serializable record) {
+        Document annotation = record.getClass().getAnnotation(Document.class);
+        if (Objects.nonNull(annotation) && StringUtils.hasText(annotation.indexName())) {
+            return annotation.indexName();
+        }
+        throw new RuntimeException("index not found...");
     }
 }

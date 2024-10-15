@@ -8,6 +8,8 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.RunnableWrapper;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.util.List;
 
@@ -22,8 +24,9 @@ public class ExporterManager {
         this.exporterList = SortUtil.sort(exporterList);
     }
 
+    @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
-        ThreadPoolConfig.getThreadPoolInstance().execute(() -> {
+        ThreadPoolConfig.getThreadPoolInstance().execute(RunnableWrapper.of(() -> {
             for (Exporter exporter : exporterList) {
                 try {
                     exporter.export(ctx, query, response, records);
@@ -37,6 +40,6 @@ public class ExporterManager {
             } catch (Exception e) {
                 log.error("release error ->{}", e);
             }
-        });
+        }));
     }
 }

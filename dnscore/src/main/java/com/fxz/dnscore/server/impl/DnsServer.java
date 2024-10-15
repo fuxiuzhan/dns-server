@@ -2,6 +2,7 @@ package com.fxz.dnscore.server.impl;
 
 import com.fxz.dnscore.docec.DatagramDnsResponseEncoder;
 import com.fxz.dnscore.server.LifeCycle;
+import com.fxz.fuled.dynamic.threadpool.ThreadPoolRegistry;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -11,8 +12,13 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsQueryDecoder;
+import io.netty.util.NettyRuntime;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -50,7 +56,11 @@ public class DnsServer implements LifeCycle {
     public void start() throws InterruptedException {
         if (stat.compareAndSet(false, true)) {
             log.info("dnsServer at host->{},port->{} starting....", ip, port);
-            group = new NioEventLoopGroup();
+
+            ThreadPoolExecutor groupThreadPool = new ThreadPoolExecutor(NettyRuntime.availableProcessors()
+                    , NettyRuntime.availableProcessors(), 1, TimeUnit.MINUTES, new ArrayBlockingQueue<>(1024));
+            ThreadPoolRegistry.registerThreadPool("netty-group", groupThreadPool);
+            group = new NioEventLoopGroup(NettyRuntime.availableProcessors(), groupThreadPool);
             try {
                 Bootstrap bootstrap = new Bootstrap();
                 bootstrap.group(group).channel(NioDatagramChannel.class)
@@ -62,8 +72,12 @@ public class DnsServer implements LifeCycle {
                                 nioDatagramChannel.pipeline().addLast(handler);
                             }
                         }).option(ChannelOption.SO_BROADCAST, true);
-
-                ChannelFuture future = bootstrap.bind(ip, port).sync();
+                ChannelFuture future;
+                if (StringUtils.isEmpty(ip)) {
+                    future = bootstrap.bind(port).sync();
+                } else {
+                    future = bootstrap.bind(ip, port).sync();
+                }
                 future.channel().closeFuture().sync();
                 log.info("dnsServer at host->{},port->{} started....", ip, port);
             } finally {

@@ -14,6 +14,8 @@ import com.fxz.queerer.CacheOperate;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -60,6 +62,7 @@ public class ParentResolver implements Resolver, Query {
         this.processorMap = processorMap;
     }
 
+    @Trace
     @Override
     public FutureTask<DatagramDnsResponse> resolve(DnsClient dnsClient, DatagramDnsQuery query) {
         this.dnsClient = dnsClient;
@@ -68,6 +71,7 @@ public class ParentResolver implements Resolver, Query {
         Constant.singleMap.put(query.id(), responseSemaphoreStorage);
         dnsClient.getChannel().writeAndFlush(query).addListener(f -> {
             if (!f.isSuccess()) {
+                Constant.singleMap.remove(query.id());
                 log.error("query completed ,but error");
             }
         });
@@ -79,17 +83,20 @@ public class ParentResolver implements Resolver, Query {
             }
             return null;
         });
-        ThreadPoolConfig.getThreadPoolInstance().execute(futureTask);
+        ThreadPoolConfig.getQueryThreadPool().execute(futureTask);
         return futureTask;
     }
 
+    @Trace
     @Override
     public DatagramDnsResponse resolveSync(DnsClient dnsClient, DatagramDnsQuery query) {
+        ActiveSpan.tag("class", ParentResolver.class.getName());
         this.dnsClient = dnsClient;
         if (dnsClient == null) {
             return null;
         }
         Future<DatagramDnsResponse> resolve = resolve(dnsClient, query);
+        ActiveSpan.tag("query.complete", Boolean.TRUE + "");
         try {
             if (resolve != null) {
                 DatagramDnsResponse datagramDnsResponse = resolve.get(2, TimeUnit.SECONDS);
@@ -101,6 +108,8 @@ public class ParentResolver implements Resolver, Query {
             String name = dnsRecord == null ? "n/a" : dnsRecord.name();
             String type = dnsRecord == null ? "n/a" : dnsRecord.type().name();
             log.error("query parent error,host->{},type->{},error->{}", name, type, e.toString());
+            ActiveSpan.tag("query.complete", Boolean.FALSE + "");
+            ActiveSpan.error(e);
         }
         return null;
     }
@@ -110,14 +119,16 @@ public class ParentResolver implements Resolver, Query {
         return "parentResolverQuery";
     }
 
+    @Trace
     @Override
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         if (!Constant.netStat) {
             return null;
         }
         for (String serverAddr : domainServers) {
+            ActiveSpan.tag("query.dns.server", serverAddr);
             InetSocketAddress addr = new InetSocketAddress(serverAddr, DNS_SERVER_PORT);
-            DatagramDnsQuery query = new DatagramDnsQuery(null, addr, (int) (counter.getAndIncrement() % 1000)).setRecord(
+            DatagramDnsQuery query = new DatagramDnsQuery(null, addr, (int) (counter.getAndIncrement() % Integer.MAX_VALUE)).setRecord(
                     DnsSection.QUESTION,
                     new DefaultDnsQuestion(question.name(), question.type()));
             query.setRecursionDesired(true);
@@ -144,6 +155,7 @@ public class ParentResolver implements Resolver, Query {
                 return baseRecords;
             }
         }
+        ActiveSpan.tag("query.dns.result", "null");
         return null;
     }
 

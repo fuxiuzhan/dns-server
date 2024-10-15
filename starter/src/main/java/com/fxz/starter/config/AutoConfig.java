@@ -28,6 +28,7 @@ import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
 import com.fxz.starter.queerer.EsQuery;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,7 +52,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AutoConfig {
 
-    @Value("${dns.server.ip:127.0.0.1}")
+    @Value("${dns.server.ip:}")
     private String ip;
     @Value("${dns.server.port:53}")
     private Integer port;
@@ -97,7 +98,7 @@ public class AutoConfig {
         parentResolver.setResolveTimeOut(resolveTimeOut);
         parentResolver.setCacheOperates(cacheOperates);
         queryList.add(parentResolver);
-        queryList = SortUtil.sort(queryList);
+        SortUtil.sort(queryList);
         return parentResolver;
     }
 
@@ -136,8 +137,8 @@ public class AutoConfig {
 
     @Bean
     @ConditionalOnClass({BaseRecordRepository.class, BaseSourceRepository.class})
-    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository) {
-        return new EsExporter(recordRepository, sourceRepository, dnsServerName);
+    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository, @Autowired RestHighLevelClient highLevelClient) {
+        return new EsExporter(recordRepository, sourceRepository, dnsServerName, highLevelClient);
     }
 
     @Bean

@@ -4,6 +4,7 @@ import com.fxz.dnscore.common.utils.SortUtil;
 import com.fxz.dnscore.objects.BaseRecord;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.Trace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +22,7 @@ public class QueryManger {
         this.queryList = SortUtil.sort(queryList);
     }
 
+    @Trace
     public List<BaseRecord> findRecords(DefaultDnsQuestion query) {
         for (Query queerer : queryList) {
             try {
