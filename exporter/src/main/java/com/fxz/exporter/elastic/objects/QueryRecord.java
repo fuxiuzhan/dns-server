@@ -34,6 +34,6 @@ public class QueryRecord implements Serializable {
     @Field(type = FieldType.Keyword)
     private String hostName;
     @Field(type = FieldType.Keyword)
-    private String MAC;
+    private String mac;
 
 }
