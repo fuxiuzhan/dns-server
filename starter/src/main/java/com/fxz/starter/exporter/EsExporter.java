@@ -87,7 +87,7 @@ public class EsExporter implements Exporter {
             queryRecord.setIp(ip);
             DHCPSniffer.HostInfo hostInfo = DHCPSniffer.hostInfoMap.get(ip);
             if (Objects.nonNull(hostInfo)) {
-                queryRecord.setMAC(hostInfo.getMac());
+                queryRecord.setMac(hostInfo.getMac());
                 queryRecord.setHostName(hostInfo.getHostName());
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
