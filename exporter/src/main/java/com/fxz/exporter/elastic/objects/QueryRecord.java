@@ -31,4 +31,9 @@ public class QueryRecord implements Serializable {
     @Field(format = DateFormat.basic_date_time)
     private Date date;
     private String res;
+    @Field(type = FieldType.Keyword)
+    private String hostName;
+    @Field(type = FieldType.Keyword)
+    private String MAC;
+
 }

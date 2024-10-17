@@ -12,6 +12,7 @@ import com.fxz.dnscore.queerer.Query;
 import com.fxz.dnscore.queerer.QueryManger;
 import com.fxz.dnscore.server.LifeCycle;
 import com.fxz.dnscore.server.ServerManager;
+import com.fxz.dnscore.server.impl.DHCPSniffer;
 import com.fxz.dnscore.server.impl.DnsClient;
 import com.fxz.dnscore.server.impl.DnsServer;
 import com.fxz.dnscore.server.impl.handler.ServerHandler;
@@ -163,6 +164,11 @@ public class AutoConfig {
         dnsServer.setIp(ip);
         dnsServer.setPort(port);
         return dnsServer;
+    }
+
+    @Bean
+    public LifeCycle injectDefaultDHCPSniffer() {
+        return new DHCPSniffer();
     }
 
     @Bean
