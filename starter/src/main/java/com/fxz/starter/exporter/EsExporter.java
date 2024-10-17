@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.objects.BaseRecord;
+import com.fxz.dnscore.server.impl.DHCPSniffer;
 import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
 import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.QueryRecord;
@@ -82,7 +83,13 @@ public class EsExporter implements Exporter {
             queryRecord.setId(System.currentTimeMillis() + "_" + counter.getAndIncrement());
             queryRecord.setAnswerCnt(records.size());
             queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
-            queryRecord.setIp(query.sender().getAddress().getHostAddress());
+            String ip = query.sender().getAddress().getHostAddress();
+            queryRecord.setIp(ip);
+            DHCPSniffer.HostInfo hostInfo = DHCPSniffer.hostInfoMap.get(ip);
+            if (Objects.nonNull(hostInfo)) {
+                queryRecord.setMAC(hostInfo.getMac());
+                queryRecord.setHostName(hostInfo.getHostName());
+            }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             queryRecord.setDateStr(formatter.format(new Date()));
