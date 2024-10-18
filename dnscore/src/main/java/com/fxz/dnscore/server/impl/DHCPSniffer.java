@@ -53,6 +53,7 @@ public class DHCPSniffer implements LifeCycle {
                     DatagramPacket receivePacket = new DatagramPacket(new byte[1500], 1500);
                     socket.receive(receivePacket);
                     DHCPPacket resultDhcpPacket = DHCPPacket.getPacket(receivePacket);
+                    log.info("dhcp packet->{}", resultDhcpPacket);
                     String hostName = resultDhcpPacket.getOptionAsString(DHO_HOST_NAME);
                     String ip = resultDhcpPacket.getOptionAsInetAddr(DHO_DHCP_REQUESTED_ADDRESS).getHostAddress();
                     String mac = bytesToHexString(resultDhcpPacket.getOptionRaw(DHO_DHCP_CLIENT_IDENTIFIER)).substring(2).toUpperCase();
