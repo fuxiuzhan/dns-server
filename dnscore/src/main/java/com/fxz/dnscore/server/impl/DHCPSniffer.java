@@ -53,16 +53,19 @@ public class DHCPSniffer implements LifeCycle {
                     DatagramPacket receivePacket = new DatagramPacket(new byte[1500], 1500);
                     socket.receive(receivePacket);
                     DHCPPacket resultDhcpPacket = DHCPPacket.getPacket(receivePacket);
-                    String hostName = resultDhcpPacket.getOptionAsString(DHO_HOST_NAME);
-                    String ip = resultDhcpPacket.getOptionAsInetAddr(DHO_DHCP_REQUESTED_ADDRESS).getHostAddress();
-                    String mac = bytesToHexString(resultDhcpPacket.getOptionRaw(DHO_DHCP_CLIENT_IDENTIFIER)).substring(2).toUpperCase();
-                    if (!StringUtils.isEmpty(hostName) && !StringUtils.isEmpty(ip) && !StringUtils.isEmpty(mac)) {
-                        HostInfo hostInfo = new HostInfo();
-                        hostInfo.setHostName(hostName);
-                        hostInfo.setIp(ip);
-                        hostInfo.setMac(mac);
-                        hostInfoMap.put(ip, hostInfo);
-                        log.info("dhcp package receive ->{}", hostInfo);
+                    log.info("dhcp packet->{}", resultDhcpPacket);
+                    if (DHCPREQUEST == resultDhcpPacket.getDHCPMessageType()) {
+                        String hostName = resultDhcpPacket.getOptionAsString(DHO_HOST_NAME);
+                        String ip = resultDhcpPacket.getOptionAsInetAddr(DHO_DHCP_REQUESTED_ADDRESS).getHostAddress();
+                        String mac = bytesToHexString(resultDhcpPacket.getOptionRaw(DHO_DHCP_CLIENT_IDENTIFIER)).substring(2).toUpperCase();
+                        if (!StringUtils.isEmpty(hostName) && !StringUtils.isEmpty(ip) && !StringUtils.isEmpty(mac)) {
+                            HostInfo hostInfo = new HostInfo();
+                            hostInfo.setHostName(hostName);
+                            hostInfo.setIp(ip);
+                            hostInfo.setMac(mac);
+                            hostInfoMap.put(ip, hostInfo);
+                            log.info("dhcp package receive ->{}", hostInfo);
+                        }
                     }
                 } catch (Exception e) {
                     log.error("HDCPSniffer error->{}", e);
