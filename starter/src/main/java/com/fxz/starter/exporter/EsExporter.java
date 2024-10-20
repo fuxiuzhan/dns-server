@@ -22,6 +22,7 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
@@ -39,18 +40,23 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Priority(order = 0)
 public class EsExporter implements Exporter {
-    BaseRecordRepository recordRepository;
-    BaseSourceRepository sourceRepository;
-    String appName;
-    AtomicLong counter = new AtomicLong(0);
+    private BaseRecordRepository recordRepository;
+    private BaseSourceRepository sourceRepository;
+    private String appName;
+    private AtomicLong counter = new AtomicLong(0);
 
-    RestHighLevelClient highLevelClient;
+    private RestHighLevelClient highLevelClient;
 
-    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String appName, RestHighLevelClient highLevelClient) {
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String PREFIX = "host_info_";
+
+    public EsExporter(BaseRecordRepository recordRepository, BaseSourceRepository sourceRepository, String appName, RestHighLevelClient highLevelClient, StringRedisTemplate stringRedisTemplate) {
         this.recordRepository = recordRepository;
         this.sourceRepository = sourceRepository;
         this.appName = appName;
         this.highLevelClient = highLevelClient;
+        this.stringRedisTemplate = stringRedisTemplate;
     }
 
     @Override
@@ -89,6 +95,16 @@ public class EsExporter implements Exporter {
             if (Objects.nonNull(hostInfo)) {
                 queryRecord.setMac(hostInfo.getMac());
                 queryRecord.setHostName(hostInfo.getHostName());
+            } else {
+                String s = stringRedisTemplate.opsForValue().get(PREFIX + ip);
+                if (!StringUtils.isEmpty(s)) {
+                    DHCPSniffer.HostInfo o = JSON.parseObject(s, DHCPSniffer.HostInfo.class);
+                    if (Objects.nonNull(o) && !StringUtils.isEmpty(o.getIp())) {
+                        queryRecord.setMac(o.getMac());
+                        queryRecord.setHostName(o.getHostName());
+                        log.info("query host info from redis ->{}", s);
+                    }
+                }
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

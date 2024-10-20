@@ -5,6 +5,7 @@ import com.fxz.dnscore.MainProcessor;
 import com.fxz.dnscore.common.utils.SortUtil;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.exporter.ExporterManager;
+import com.fxz.dnscore.exporter.HostInfoExport;
 import com.fxz.dnscore.processor.Processor;
 import com.fxz.dnscore.processor.ProcessorManger;
 import com.fxz.dnscore.processor.impl.*;
@@ -22,6 +23,7 @@ import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.cache.impl.LocalLRUCache;
 import com.fxz.queerer.cache.impl.RedisCache;
+import com.fxz.queerer.host.impl.RedisHostInfoExport;
 import com.fxz.queerer.query.impl.BeforeQuery;
 import com.fxz.queerer.query.impl.CacheQuery;
 import com.fxz.queerer.query.impl.RedirectPTRQuery;
@@ -37,6 +39,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -138,8 +141,8 @@ public class AutoConfig {
 
     @Bean
     @ConditionalOnClass({BaseRecordRepository.class, BaseSourceRepository.class})
-    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository, @Autowired RestHighLevelClient highLevelClient) {
-        return new EsExporter(recordRepository, sourceRepository, dnsServerName, highLevelClient);
+    public EsExporter injectEsExporter(@Autowired BaseRecordRepository recordRepository, @Autowired BaseSourceRepository sourceRepository, @Autowired RestHighLevelClient highLevelClient, @Autowired StringRedisTemplate stringRedisTemplate) {
+        return new EsExporter(recordRepository, sourceRepository, dnsServerName, highLevelClient, stringRedisTemplate);
     }
 
     @Bean
@@ -167,9 +170,15 @@ public class AutoConfig {
     }
 
     @Bean
-    public LifeCycle injectDefaultDHCPSniffer() {
-        return new DHCPSniffer();
+    public HostInfoExport redisHostInfoExport() {
+        return new RedisHostInfoExport();
     }
+
+    @Bean
+    public LifeCycle injectDefaultDHCPSniffer(@Autowired(required = false) List<HostInfoExport> hostInfoExports) {
+        return new DHCPSniffer(hostInfoExports);
+    }
+
 
     @Bean
     @ConditionalOnMissingBean(ServerManager.class)
