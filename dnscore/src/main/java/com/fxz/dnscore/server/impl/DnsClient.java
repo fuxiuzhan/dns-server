@@ -11,6 +11,7 @@ import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.codec.dns.DatagramDnsQueryEncoder;
 import lombok.extern.slf4j.Slf4j;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -49,7 +50,7 @@ public class DnsClient implements LifeCycle {
                                         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
                                             if (msg instanceof DatagramDnsResponse) {
                                                 DatagramDnsResponse res = (DatagramDnsResponse) msg;
-                                                //System.out.println("res->" + msg.toString());
+                                                log.info("DnsClient response ->{}", res);
                                                 ResponseSemaphore responseSemaphore = Constant.singleMap.get(res.id());
                                                 if (responseSemaphore != null) {
                                                     responseSemaphore.setResponse(res);

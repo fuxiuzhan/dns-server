@@ -222,4 +222,9 @@ public class AutoConfig {
         return processorManger;
     }
 
+
+    @Bean
+    public TypeConfig typeConfig() {
+        return new TypeConfig();
+    }
 }

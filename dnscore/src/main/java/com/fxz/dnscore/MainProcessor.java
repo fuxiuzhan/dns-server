@@ -87,6 +87,9 @@ public class MainProcessor implements InitializingBean {
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {
             DefaultDnsQuestion question = query.recordAt(DnsSection.QUESTION);
+            if (!processorMap.containsKey(question.type())) {
+                log.info("processorMap not  containsKey type->{} question ->{}", question.type(), question);
+            }
             Processor processor = processorMap.getOrDefault(question.type(), processorMap.get(DnsRecordType.A));
             ProcessResult processResult = processor.process(question);
             DatagramDnsResponse response = new DatagramDnsResponse(query.recipient(), query.sender(), query.id());
