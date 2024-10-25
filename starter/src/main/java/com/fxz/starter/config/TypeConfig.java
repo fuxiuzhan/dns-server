@@ -14,20 +14,27 @@ public class TypeConfig {
 
     @PostConstruct
     public void init() throws IllegalAccessException {
-        DnsRecordType httpsType = new DnsRecordType(65, "HTTPS");
+        addType(new DnsRecordType(65, "HTTPS"));
+    }
+
+    /**
+     * @param dnsRecordType
+     */
+    public void addType(DnsRecordType dnsRecordType) throws IllegalAccessException {
         Field byName = ReflectionUtil.getField(DnsRecordType.class, "BY_NAME");
         if (!byName.isAccessible()) {
             byName.setAccessible(Boolean.TRUE);
         }
         Map<String, DnsRecordType> byNameMap = (Map<String, DnsRecordType>) byName.get(DnsRecordType.class);
-        byNameMap.put("HTTPS", httpsType);
+        byNameMap.put("HTTPS", dnsRecordType);
 
         Field byType = ReflectionUtil.getField(DnsRecordType.class, "BY_TYPE");
         if (!byType.isAccessible()) {
             byType.setAccessible(Boolean.TRUE);
         }
         IntObjectHashMap<DnsRecordType> intObjectHashMap = (IntObjectHashMap<DnsRecordType>) byType.get(DnsRecordType.class);
-        intObjectHashMap.put(65, httpsType);
-        log.info("add new Type->{}", httpsType);
+        intObjectHashMap.put(dnsRecordType.intValue(), dnsRecordType);
+        log.info("add new Type->{}", dnsRecordType);
     }
+
 }

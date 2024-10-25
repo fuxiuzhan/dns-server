@@ -78,6 +78,24 @@ public class MainProcessor implements InitializingBean {
         exporterManager.export(ctx, query, response, records);
     }
 
+
+    /**
+     * https
+     *
+     * @param question
+     * @return
+     */
+    public Boolean needReplace(DefaultDnsQuestion question) {
+        return question.type().intValue() == 65;
+    }
+
+    /**
+     * @param question
+     */
+    public void replaceQuestion(DatagramDnsQuery query, DefaultDnsQuestion question, DnsRecordType dnsRecordType) {
+        query.setRecord(DnsSection.QUESTION, new DefaultDnsQuestion(question.name(), dnsRecordType));
+    }
+
     /**
      * @param ctx
      * @param query
@@ -87,8 +105,13 @@ public class MainProcessor implements InitializingBean {
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {
             DefaultDnsQuestion question = query.recordAt(DnsSection.QUESTION);
-            if (!processorMap.containsKey(question.type())) {
+            DnsRecordType rawType = question.type();
+            Boolean needReplace = needReplace(question);
+            if (needReplace || !processorMap.containsKey(question.type())) {
                 log.info("processorMap not  containsKey type->{} question ->{}", question.type(), question);
+                DefaultDnsQuestion defaultDnsQuestion = new DefaultDnsQuestion(question.name(), DnsRecordType.A);
+                query.setRecord(DnsSection.QUESTION, defaultDnsQuestion);
+                question = defaultDnsQuestion;
             }
             Processor processor = processorMap.getOrDefault(question.type(), processorMap.get(DnsRecordType.A));
             ProcessResult processResult = processor.process(question);
@@ -107,6 +130,10 @@ public class MainProcessor implements InitializingBean {
             response.retain();
             query.retain();
             ctx.writeAndFlush(response);
+            if (needReplace) {
+                log.info("replace question section...raw->{}", question.type());
+                replaceQuestion(query, question, rawType);
+            }
             export(ctx, query, response, processResult.getRecords());
         } else {
             reject(ctx, query);
