@@ -64,9 +64,14 @@ public class DHCPSniffer implements LifeCycle {
                     DHCPPacket resultDhcpPacket = DHCPPacket.getPacket(receivePacket);
                     log.info("dhcp packet->{}", resultDhcpPacket);
                     if (DHCPREQUEST == resultDhcpPacket.getDHCPMessageType()) {
-                        String hostName = resultDhcpPacket.getOptionAsString(DHO_HOST_NAME);
                         String ip = resultDhcpPacket.getOptionAsInetAddr(DHO_DHCP_REQUESTED_ADDRESS).getHostAddress();
                         String mac = bytesToHexString(resultDhcpPacket.getOptionRaw(DHO_DHCP_CLIENT_IDENTIFIER)).substring(2).toUpperCase();
+                        String hostName = mac;
+                        try {
+                            hostName = resultDhcpPacket.getOptionAsString(DHO_HOST_NAME);
+                        } catch (Exception e) {
+                            log.error("hdcp ->{}", e);
+                        }
                         if (!StringUtils.isEmpty(hostName) && !StringUtils.isEmpty(ip) && !StringUtils.isEmpty(mac)) {
                             HostInfo hostInfo = new HostInfo();
                             hostInfo.setHostName(hostName);
