@@ -35,5 +35,20 @@ public class QueryRecord implements Serializable {
     private String hostName;
     @Field(type = FieldType.Keyword)
     private String mac;
+    @Field(type = FieldType.Keyword)
+    private String country;
+    @Field(type = FieldType.Keyword)
+    private String province;
+    @Field(type = FieldType.Keyword)
+    private String isp;
+    @Field(type = FieldType.Keyword)
+    private String address;
+    @Field(type = FieldType.Keyword)
+    private boolean overseas;
+    @Field(type = FieldType.Keyword)
+    private double lat;
+    @Field(type = FieldType.Keyword)
+    private double lng;
+
 
 }

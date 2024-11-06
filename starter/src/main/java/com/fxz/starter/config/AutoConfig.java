@@ -227,4 +227,9 @@ public class AutoConfig {
     public TypeConfig typeConfig() {
         return new TypeConfig();
     }
+
+    @Bean
+    public Ip2RegionConfig ip2RegionConfig() {
+        return new Ip2RegionConfig();
+    }
 }

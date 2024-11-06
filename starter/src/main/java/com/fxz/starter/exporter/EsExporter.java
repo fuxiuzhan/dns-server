@@ -1,8 +1,11 @@
 package com.fxz.starter.exporter;
 
+import cn.z.ip2region.Ip2Region;
+import cn.z.ip2region.Region;
 import com.alibaba.fastjson.JSON;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
+import com.fxz.dnscore.filter.IpFilter;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.server.impl.DHCPSniffer;
 import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
@@ -10,6 +13,8 @@ import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.QueryRecord;
 import com.fxz.exporter.elastic.objects.SourceRecord;
 import com.fxz.queerer.util.CacheUtil;
+import com.jthinking.common.util.ip.IPInfo;
+import com.jthinking.common.util.ip.IPInfoUtils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
@@ -105,6 +110,16 @@ public class EsExporter implements Exporter {
                         log.info("query host info from redis ->{}", s);
                     }
                 }
+            }
+            IPInfo ipInfo = IPInfoUtils.getIpInfo(ip);
+            if (Objects.nonNull(ipInfo)) {
+                queryRecord.setCountry(ipInfo.getCountry());
+                queryRecord.setProvince(ipInfo.getProvince());
+                queryRecord.setOverseas(ipInfo.isOverseas());
+                queryRecord.setIsp(ipInfo.getIsp());
+                queryRecord.setLat(ipInfo.getLat());
+                queryRecord.setLng(ipInfo.getLng());
+                queryRecord.setAddress(ipInfo.getAddress());
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
