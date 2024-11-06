@@ -13,6 +13,8 @@ import com.fxz.exporter.elastic.baserepository.BaseSourceRepository;
 import com.fxz.exporter.elastic.objects.QueryRecord;
 import com.fxz.exporter.elastic.objects.SourceRecord;
 import com.fxz.queerer.util.CacheUtil;
+import com.jthinking.common.util.ip.IPInfo;
+import com.jthinking.common.util.ip.IPInfoUtils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DatagramDnsResponse;
@@ -109,12 +111,15 @@ public class EsExporter implements Exporter {
                     }
                 }
             }
-            Region region = Ip2Region.parse(ip);
-            if (Objects.nonNull(region)) {
-                queryRecord.setCountry(region.getCountry());
-                queryRecord.setProvince(region.getProvince());
-                queryRecord.setCity(region.getCity());
-                queryRecord.setIsp(region.getIsp());
+            IPInfo ipInfo = IPInfoUtils.getIpInfo(ip);
+            if (Objects.nonNull(ipInfo)) {
+                queryRecord.setCountry(ipInfo.getCountry());
+                queryRecord.setProvince(ipInfo.getProvince());
+                queryRecord.setOverseas(ipInfo.isOverseas());
+                queryRecord.setIsp(ipInfo.getIsp());
+                queryRecord.setLat(ipInfo.getLat());
+                queryRecord.setLng(ipInfo.getLng());
+                queryRecord.setAddress(ipInfo.getAddress());
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

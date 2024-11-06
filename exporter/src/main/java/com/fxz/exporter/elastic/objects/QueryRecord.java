@@ -40,9 +40,15 @@ public class QueryRecord implements Serializable {
     @Field(type = FieldType.Keyword)
     private String province;
     @Field(type = FieldType.Keyword)
-    private String city;
-    @Field(type = FieldType.Keyword)
     private String isp;
+    @Field(type = FieldType.Keyword)
+    private String address;
+    @Field(type = FieldType.Keyword)
+    private boolean overseas;
+    @Field(type = FieldType.Keyword)
+    private double lat;
+    @Field(type = FieldType.Keyword)
+    private double lng;
 
 
 }
