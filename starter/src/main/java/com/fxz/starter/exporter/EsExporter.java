@@ -1,8 +1,11 @@
 package com.fxz.starter.exporter;
 
+import cn.z.ip2region.Ip2Region;
+import cn.z.ip2region.Region;
 import com.alibaba.fastjson.JSON;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
+import com.fxz.dnscore.filter.IpFilter;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.server.impl.DHCPSniffer;
 import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
@@ -105,6 +108,13 @@ public class EsExporter implements Exporter {
                         log.info("query host info from redis ->{}", s);
                     }
                 }
+            }
+            Region region = Ip2Region.parse(ip);
+            if (Objects.nonNull(region)) {
+                queryRecord.setCountry(region.getCountry());
+                queryRecord.setProvince(region.getProvince());
+                queryRecord.setCity(region.getCity());
+                queryRecord.setIsp(region.getIsp());
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
