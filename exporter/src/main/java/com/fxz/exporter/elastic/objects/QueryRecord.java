@@ -1,6 +1,7 @@
 package com.fxz.exporter.elastic.objects;
 
 import lombok.Data;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
@@ -49,6 +50,7 @@ public class QueryRecord implements Serializable {
     private double lat;
     @Field(type = FieldType.Keyword)
     private double lng;
-
+    @Field(type = FieldType.Keyword)
+    private GeoPoint geoPoint;
 
 }
