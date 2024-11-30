@@ -3,6 +3,7 @@ package com.fxz.starter.exporter;
 import cn.z.ip2region.Ip2Region;
 import cn.z.ip2region.Region;
 import com.alibaba.fastjson.JSON;
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.filter.IpFilter;
@@ -25,6 +26,7 @@ import org.apache.skywalking.apm.toolkit.trace.Trace;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -78,6 +80,7 @@ public class EsExporter implements Exporter {
      * logging scheduled and batching
      */
     @Trace
+    @CatTracing
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         ActiveSpan.tag("class", EsExporter.class.getName());
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"
@@ -120,6 +123,7 @@ public class EsExporter implements Exporter {
                 queryRecord.setLat(ipInfo.getLat());
                 queryRecord.setLng(ipInfo.getLng());
                 queryRecord.setAddress(ipInfo.getAddress());
+                queryRecord.setGeoPoint(new GeoPoint(ipInfo.getLat(), ipInfo.getLng()));
             }
             queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

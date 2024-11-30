@@ -1,5 +1,6 @@
 package com.fxz.dnscore;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.exporter.ExporterManager;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ProcessResult;
@@ -64,6 +65,7 @@ public class MainProcessor implements InitializingBean {
      * @param response
      */
     @Trace
+    @CatTracing
     public void addAdditions(DatagramDnsQuery query, DatagramDnsResponse response) {
         //response.addRecord(DnsSection.ADDITIONAL, DnsRecordCoder.assembleCNAME(query.recordAt(DnsSection.QUESTION).name(), 10, "c.name.com"));
     }
@@ -74,6 +76,7 @@ public class MainProcessor implements InitializingBean {
      * @param response
      */
     @Trace
+    @CatTracing
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         exporterManager.export(ctx, query, response, records);
     }
@@ -101,6 +104,7 @@ public class MainProcessor implements InitializingBean {
      * @param query
      */
     @Trace
+    @CatTracing
     @Monitor
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {

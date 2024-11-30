@@ -1,5 +1,6 @@
 package com.fxz.queerer.query.impl;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.PTRRecord;
@@ -17,7 +18,8 @@ import java.util.List;
  */
 @Slf4j
 @Priority(order = -1)
-public class RedirectPTRQuery implements Query {
+public class
+RedirectPTRQuery implements Query {
     private String nameServer;
     private int ttl ;
 
@@ -31,6 +33,7 @@ public class RedirectPTRQuery implements Query {
         return "redirectPTRQuery";
     }
 
+    @CatTracing
     @Override
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         log.info("name->{},queryHost->{}", name(), question.name());

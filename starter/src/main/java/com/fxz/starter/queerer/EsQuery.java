@@ -1,5 +1,6 @@
 package com.fxz.starter.queerer;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.queerer.Query;
@@ -34,6 +35,7 @@ public class EsQuery implements Query {
     }
 
     @Trace
+    @CatTracing
     @Override
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         log.info("name->{},queryHost->{}", name(), question.name());

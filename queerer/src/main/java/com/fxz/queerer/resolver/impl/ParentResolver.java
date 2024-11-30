@@ -1,5 +1,6 @@
 package com.fxz.queerer.resolver.impl;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.common.Constant;
 import com.fxz.dnscore.common.ThreadPoolConfig;
@@ -63,6 +64,7 @@ public class ParentResolver implements Resolver, Query {
     }
 
     @Trace
+    @CatTracing
     @Override
     public FutureTask<DatagramDnsResponse> resolve(DnsClient dnsClient, DatagramDnsQuery query) {
         this.dnsClient = dnsClient;

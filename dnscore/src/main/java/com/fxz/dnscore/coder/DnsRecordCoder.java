@@ -1,5 +1,6 @@
 package com.fxz.dnscore.coder;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.objects.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -31,6 +32,7 @@ public class DnsRecordCoder {
     }
 
     @Trace
+    @CatTracing
     public static ARecord decodeA(DnsRecord dnsRecord) {
         ByteBuf byteBuf = ((DnsRawRecord) dnsRecord).content();
         ARecord aRecord = new ARecord();

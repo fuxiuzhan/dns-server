@@ -1,5 +1,6 @@
 package com.fxz.queerer.cache.impl;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.util.CacheUtil;
@@ -24,6 +25,7 @@ public class LocalLRUCache implements CacheOperate {
 
     LruCache lruCache = new LruCache(1024);
 
+    @CatTracing
     @Override
     public List<BaseRecord> get(String host, String dnsRecordType) {
         String key = CacheUtil.assembleKey(host, dnsRecordType);
@@ -54,6 +56,7 @@ public class LocalLRUCache implements CacheOperate {
         return set(host, dnsRecordType.name(), baseRecordList, ttl);
     }
 
+    @CatTracing
     @Override
     public Boolean set(String host, String dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
         if (baseRecordList != null && baseRecordList.size() > 0) {

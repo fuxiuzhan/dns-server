@@ -1,5 +1,6 @@
 package com.fxz.queerer.query.impl;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.queerer.Query;
@@ -29,6 +30,7 @@ public class CacheQuery implements Query {
     }
 
     @Trace
+    @CatTracing
     @Override
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         ActiveSpan.tag("class", CacheQuery.class.getName());
