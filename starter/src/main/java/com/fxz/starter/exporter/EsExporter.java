@@ -3,6 +3,7 @@ package com.fxz.starter.exporter;
 import cn.z.ip2region.Ip2Region;
 import cn.z.ip2region.Region;
 import com.alibaba.fastjson.JSON;
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.filter.IpFilter;
@@ -79,6 +80,7 @@ public class EsExporter implements Exporter {
      * logging scheduled and batching
      */
     @Trace
+    @CatTracing
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         ActiveSpan.tag("class", EsExporter.class.getName());
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"

@@ -1,6 +1,7 @@
 package com.fxz.queerer.cache.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.util.CacheUtil;
@@ -34,6 +35,7 @@ public class RedisCache implements CacheOperate {
     }
 
     @Trace
+    @CatTracing
     @Override
     public List<BaseRecord> get(String host, String dnsRecordType) {
         ActiveSpan.tag("class", RedisCache.class.getName());
@@ -60,6 +62,7 @@ public class RedisCache implements CacheOperate {
     }
 
     @Trace
+    @CatTracing
     @Override
     public Boolean set(String host, String dnsRecordType, List<BaseRecord> baseRecordList, Integer ttl) {
         ActiveSpan.tag("class", RedisCache.class.getName());
