@@ -3,6 +3,7 @@ package com.fxz.dnscore.processor;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ProcessResult;
 import com.fxz.dnscore.queerer.QueryManger;
+import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
@@ -27,9 +28,9 @@ public abstract class AbstractProcessor implements Processor {
     }
 
     @Override
-    public ProcessResult process(DefaultDnsQuestion question) {
+    public ProcessResult process(DefaultDnsQuestion question, DatagramDnsQuery query) {
         ProcessResult processResult = new ProcessResult();
-        List<BaseRecord> records = queryManger.findRecords(question);
+        List<BaseRecord> records = queryManger.findRecords(question, query);
         processResult.setRecords(records);
         processResult.setRawRecords(assemble(records));
         return processResult;

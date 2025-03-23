@@ -2,6 +2,7 @@ package com.fxz.dnscore.common;
 
 import com.fxz.fuled.common.utils.ThreadFactoryNamed;
 import com.fxz.fuled.dynamic.threadpool.ThreadPoolRegistry;
+import com.fxz.fuled.dynamic.threadpool.manage.impl.DefaultThreadExecuteHook;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -33,7 +34,12 @@ public class ThreadPoolConfig {
     private static ThreadPoolExecutor getThreadPool(String poolName) {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), ThreadFactoryNamed.named(THREAD_POOL_PREFIX));
         executor.allowCoreThreadTimeOut(true);
-        ThreadPoolRegistry.registerThreadPool(poolName, executor);
+        ThreadPoolRegistry.registerThreadPool(poolName, executor, new DefaultThreadExecuteHook() {
+            @Override
+            public boolean threadLocalSupport() {
+                return Boolean.FALSE;
+            }
+        });
         return executor;
     }
 

@@ -23,10 +23,10 @@ import java.util.Map;
 public class ConfigListener {
 
     @Autowired
-    CacheOperate cacheOperate;
+    private CacheOperate cacheOperate;
 
     @Autowired
-    RedisTemplate redisTemplate;
+    private RedisTemplate redisTemplate;
 
     @Autowired
     PersistProperties persistProperties;
