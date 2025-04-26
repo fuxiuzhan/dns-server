@@ -5,12 +5,12 @@ import com.dianping.cat.message.Transaction;
 import com.dianping.cat.message.spi.MessageTree;
 import com.fxz.component.fuled.cat.starter.util.CatPropertyContext;
 import com.fxz.fuled.dynamic.threadpool.RpcContext;
-import com.fxz.fuled.dynamic.threadpool.manage.impl.DefaultThreadExecuteHook;
+import com.fxz.fuled.dynamic.threadpool.manage.impl.ThreadExecuteHookReporter;
 import com.fxz.fuled.dynamic.threadpool.wrapper.TaskWrapper;
 
 import static com.dianping.cat.Cat.*;
 
-public class TracedThreadExecuteHook extends DefaultThreadExecuteHook {
+public class TracedThreadExecuteHook extends ThreadExecuteHookReporter {
     ThreadLocal<Transaction> transactionThreadLocal = new ThreadLocal<>();
 
     @Override
