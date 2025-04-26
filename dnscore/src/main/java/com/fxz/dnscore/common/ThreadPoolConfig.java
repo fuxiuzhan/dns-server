@@ -34,12 +34,7 @@ public class ThreadPoolConfig {
     private static ThreadPoolExecutor getThreadPool(String poolName) {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(CORE_THREADS, CORE_THREADS * 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000), ThreadFactoryNamed.named(THREAD_POOL_PREFIX));
         executor.allowCoreThreadTimeOut(true);
-        ThreadPoolRegistry.registerThreadPool(poolName, executor, new DefaultThreadExecuteHook() {
-            @Override
-            public boolean threadLocalSupport() {
-                return Boolean.FALSE;
-            }
-        });
+        ThreadPoolRegistry.registerThreadPool(poolName, executor, new TracedThreadExecuteHook());
         return executor;
     }
 
