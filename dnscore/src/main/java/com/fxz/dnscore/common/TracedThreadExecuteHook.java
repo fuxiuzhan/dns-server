@@ -8,6 +8,8 @@ import com.fxz.fuled.dynamic.threadpool.RpcContext;
 import com.fxz.fuled.dynamic.threadpool.manage.impl.ThreadExecuteHookReporter;
 import com.fxz.fuled.dynamic.threadpool.wrapper.TaskWrapper;
 
+import java.util.Objects;
+
 import static com.dianping.cat.Cat.*;
 
 public class TracedThreadExecuteHook extends ThreadExecuteHookReporter {
@@ -17,16 +19,22 @@ public class TracedThreadExecuteHook extends ThreadExecuteHookReporter {
     public void onException(TaskWrapper taskWrapper, Throwable throwable) {
         super.onException(taskWrapper, throwable);
         Transaction transaction = transactionThreadLocal.get();
-        transaction.setStatus(throwable);
-        transaction.complete();
+        Cat.logEvent("onException", taskWrapper.getThreadPoolName());
+        if (Objects.nonNull(transaction)) {
+            transaction.setStatus(throwable);
+            transaction.complete();
+        }
     }
 
     @Override
     public void afterExecute(TaskWrapper taskWrapper) {
         super.afterExecute(taskWrapper);
         Transaction transaction = transactionThreadLocal.get();
-        transaction.setStatus(Transaction.SUCCESS);
-        transaction.complete();
+        Cat.logEvent("afterExecute", taskWrapper.getThreadPoolName());
+        if (Objects.nonNull(transaction)) {
+            transaction.setStatus(Transaction.SUCCESS);
+            transaction.complete();
+        }
 
     }
 
@@ -35,21 +43,6 @@ public class TracedThreadExecuteHook extends ThreadExecuteHookReporter {
         super.enqueue(taskWrapper);
         Transaction t = Cat.newTransaction("CrossThreadPool", taskWrapper.getThreadPoolName());
         CatPropertyContext context = new CatPropertyContext();
-//        MessageTree tree = getManager().getThreadLocalMessageTree();
-//        String messageId = tree.getMessageId();
-//        if (messageId == null) {
-//            messageId = getProducer().createMessageId();
-//            tree.setMessageId(messageId);
-//        }
-//        String childId = getProducer().createRpcServerId(Cat.getManager().getDomain());
-//        logEvent("CrossThread", "", "0", childId);
-//        String root = tree.getRootMessageId();
-//        if (root == null) {
-//            root = messageId;
-//        }
-//        context.addProperty(Context.ROOT, root);
-//        context.addProperty(Context.PARENT, messageId);
-//        context.addProperty(Context.CHILD, childId);
         Cat.logRemoteCallClient(context, Cat.getManager().getDomain());
         taskWrapper.setMeta(context);
         t.complete();
@@ -74,7 +67,8 @@ public class TracedThreadExecuteHook extends ThreadExecuteHookReporter {
         if (childId != null) {
             tree.setMessageId(childId);
         }
-        Transaction beforeExecute_ = newTransaction("Execute", taskWrapper.getThreadPoolName());
-        transactionThreadLocal.set(beforeExecute_);
+        Transaction transaction = newTransaction("Execute", taskWrapper.getThreadPoolName());
+        Cat.logEvent("beforeExecute", taskWrapper.getThreadPoolName());
+        transactionThreadLocal.set(transaction);
     }
 }

@@ -2,6 +2,7 @@ package com.fxz.starter.config;
 
 
 import com.fxz.dnscore.MainProcessor;
+import com.fxz.dnscore.common.ThreadPoolConfig;
 import com.fxz.dnscore.common.utils.SortUtil;
 import com.fxz.dnscore.exporter.Exporter;
 import com.fxz.dnscore.exporter.ExporterManager;
@@ -223,6 +224,10 @@ public class AutoConfig {
     }
 
 
+    @Bean
+    public ThreadPoolConfig threadPoolConfig(){
+        return new ThreadPoolConfig();
+    }
     @Bean
     public TypeConfig typeConfig() {
         return new TypeConfig();
