@@ -1,5 +1,6 @@
 package com.fxz.dnscore.exporter;
 
+import com.fxz.component.fuled.cat.starter.component.threadpool.CatTraceWrapper;
 import com.fxz.dnscore.common.ThreadPoolConfig;
 import com.fxz.dnscore.common.utils.SortUtil;
 import com.fxz.dnscore.objects.BaseRecord;
@@ -26,7 +27,7 @@ public class ExporterManager {
 
     @Trace
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
-        ThreadPoolConfig.getThreadPoolInstance().execute(RunnableWrapper.of(() -> {
+        ThreadPoolConfig.getExportThreadPool().execute(CatTraceWrapper.buildRunnable(RunnableWrapper.of(() -> {
             for (Exporter exporter : exporterList) {
                 try {
                     exporter.export(ctx, query, response, records);
@@ -40,6 +41,6 @@ public class ExporterManager {
             } catch (Exception e) {
                 log.error("release error ->{}", e);
             }
-        }));
+        }), ThreadPoolConfig.EXPORT_THREAD_POOL));
     }
 }

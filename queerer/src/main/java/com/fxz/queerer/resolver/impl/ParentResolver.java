@@ -1,6 +1,7 @@
 package com.fxz.queerer.resolver.impl;
 
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
+import com.fxz.component.fuled.cat.starter.component.threadpool.CatTraceWrapper;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.common.Constant;
 import com.fxz.dnscore.common.ThreadPoolConfig;
@@ -85,7 +86,7 @@ public class ParentResolver implements Resolver, Query {
             }
             return null;
         });
-        ThreadPoolConfig.getQueryThreadPool().execute(futureTask);
+        ThreadPoolConfig.getQueryThreadPool().execute(CatTraceWrapper.buildRunnable(futureTask, ThreadPoolConfig.QUERY_THREAD_POOL));
         return futureTask;
     }
 
