@@ -46,7 +46,7 @@ public class ThreadPoolConfig implements SmartInitializingSingleton {
 
     @Override
     public void afterSingletonsInstantiated() {
-        ThreadPoolRegistry.registerThreadPool(EXPORT_THREAD_POOL, exportThreadPool, tracedThreadExecuteHook);
-        ThreadPoolRegistry.registerThreadPool(QUERY_THREAD_POOL, querySyncThreadPool, tracedThreadExecuteHook);
+        ThreadPoolRegistry.registerThreadPool(EXPORT_THREAD_POOL, exportThreadPool);
+        ThreadPoolRegistry.registerThreadPool(QUERY_THREAD_POOL, querySyncThreadPool);
     }
 }
