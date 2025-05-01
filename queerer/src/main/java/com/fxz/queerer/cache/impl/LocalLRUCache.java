@@ -46,6 +46,17 @@ public class LocalLRUCache implements CacheOperate {
         return null;
     }
 
+    /**
+     * @param host
+     * @param dnsRecordType
+     * @return
+     */
+    @Override
+    public boolean exist(String host, String dnsRecordType) {
+        String key = CacheUtil.assembleKey(host, dnsRecordType);
+        return lruCache.containsKey(key);
+    }
+
     @Override
     public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
         return get(host, dnsRecordType.name());

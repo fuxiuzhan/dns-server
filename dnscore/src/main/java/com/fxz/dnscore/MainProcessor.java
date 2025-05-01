@@ -1,11 +1,13 @@
 package com.fxz.dnscore;
 
+import com.dianping.cat.Cat;
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.exporter.ExporterManager;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ProcessResult;
 import com.fxz.dnscore.processor.Processor;
 import com.fxz.dnscore.processor.ProcessorManger;
+import com.fxz.fuled.dynamic.threadpool.RpcContext;
 import com.fxz.fuled.logger.starter.annotation.Monitor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.*;
@@ -22,9 +24,9 @@ import java.util.Map;
 @Slf4j
 public class MainProcessor implements InitializingBean {
 
-    ExporterManager exporterManager;
+    private ExporterManager exporterManager;
 
-    ProcessorManger processorManger;
+    private ProcessorManger processorManger;
 
     public void setExporterManager(ExporterManager exporterManager) {
         this.exporterManager = exporterManager;
@@ -118,7 +120,7 @@ public class MainProcessor implements InitializingBean {
                 question = defaultDnsQuestion;
             }
             Processor processor = processorMap.getOrDefault(question.type(), processorMap.get(DnsRecordType.A));
-            ProcessResult processResult = processor.process(question);
+            ProcessResult processResult = processor.process(question, query);
             DatagramDnsResponse response = new DatagramDnsResponse(query.recipient(), query.sender(), query.id());
             response.setRecursionDesired(query.isRecursionDesired());
             response.setAuthoritativeAnswer(query.isRecursionDesired());

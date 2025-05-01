@@ -1,13 +1,23 @@
 package com.fxz.dnscore.queerer;
 
-import com.fxz.dnscore.common.utils.SortUtil;
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
+import com.fxz.dnscore.common.Constant;
 import com.fxz.dnscore.objects.BaseRecord;
+import com.fxz.fuled.common.chain.FilterChainManger;
+import com.fxz.fuled.common.chain.Invoker;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
+import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
+import io.netty.handler.codec.dns.DnsSection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.toolkit.trace.Trace;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
+import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author fxz
@@ -16,24 +26,27 @@ import java.util.List;
 @Slf4j
 public class QueryManger {
 
-    private List<Query> queryList;
+    @Value("#{${dns.server.filter.ips:{}}}")
+    private Map<String, List<String>> filterIps;
 
-    public void setQueryList(List<Query> queryList) {
-        this.queryList = SortUtil.sort(queryList);
+    @Autowired
+    private FilterChainManger filterChainManger;
+
+    private Invoker<DefaultDnsQuestion, List<BaseRecord>> queryInvoker;
+
+    @PostConstruct
+    public void init() {
+        queryInvoker = filterChainManger.getInvoker(Constant.GROUP_QUERY, o -> new ArrayList<>());
     }
 
+    @Monitor(printParams = false)
     @Trace
-    public List<BaseRecord> findRecords(DefaultDnsQuestion query) {
-        for (Query queerer : queryList) {
-            try {
-                List<BaseRecord> records = queerer.findRecords(query);
-                if (records != null && records.size() > 0) {
-                    return records;
-                }
-            } catch (Exception e) {
-                log.error("query error queerer->{},error->", queerer.name(), e);
-            }
+    @CatTracing
+    public List<BaseRecord> findRecords(DefaultDnsQuestion question, DatagramDnsQuery query) {
+        List<String> orDefault = filterIps.getOrDefault(query.sender().getAddress().getHostAddress(), new ArrayList<>());
+        if (orDefault.contains(query.recordAt(DnsSection.QUESTION).type().name())) {
+            return new ArrayList<>();
         }
-        return new ArrayList<>();
+        return queryInvoker.invoke(question);
     }
 }

@@ -22,16 +22,10 @@ import java.util.concurrent.TimeUnit;
  * @author fxz
  */
 public class RedisCache implements CacheOperate {
-    RedisTemplate redisTemplate;
-    private int fixedTtl;
+    private RedisTemplate redisTemplate;
 
     public RedisCache(RedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
-    }
-
-    public RedisCache(RedisTemplate redisTemplate, int fixedTtl) {
-        this.redisTemplate = redisTemplate;
-        this.fixedTtl = fixedTtl;
     }
 
     @Trace
@@ -52,6 +46,12 @@ public class RedisCache implements CacheOperate {
     }
 
     @Override
+    public boolean exist(String host, String dnsRecordType) {
+        String key = CacheUtil.assembleKey(host, dnsRecordType);
+        return redisTemplate.hasKey(key);
+    }
+
+    @Override
     public List<BaseRecord> get(String host, DnsRecordType dnsRecordType) {
         return get(host, dnsRecordType.name());
     }
@@ -68,17 +68,11 @@ public class RedisCache implements CacheOperate {
         ActiveSpan.tag("class", RedisCache.class.getName());
         ActiveSpan.tag("cache.host", host);
         ActiveSpan.tag("cache.type", dnsRecordType);
-        if (baseRecordList != null && baseRecordList.size() > 0) {
-            String key = CacheUtil.assembleKey(host, dnsRecordType);
-            if (fixedTtl > 0) {
-                ttl = Math.max(fixedTtl, ttl);
-            }
-            ActiveSpan.tag("cache.record.ttl", ttl + "");
-            String value = JSON.toJSONString(baseRecordList);
-            redisTemplate.opsForValue().set(key, value, ttl, TimeUnit.SECONDS);
-            ActiveSpan.tag("cache.record.result", value + "");
-            return true;
-        }
-        return false;
+        String key = CacheUtil.assembleKey(host, dnsRecordType);
+        ActiveSpan.tag("cache.record.ttl", ttl + "");
+        String value = JSON.toJSONString(baseRecordList);
+        redisTemplate.opsForValue().set(key, value, ttl, TimeUnit.SECONDS);
+        ActiveSpan.tag("cache.record.result", value + "");
+        return true;
     }
 }
