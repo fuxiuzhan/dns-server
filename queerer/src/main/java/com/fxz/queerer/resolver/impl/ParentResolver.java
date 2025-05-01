@@ -23,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
@@ -101,12 +102,15 @@ public class ParentResolver implements Resolver, Query {
         Future<DatagramDnsResponse> resolve = resolve(dnsClient, query);
         ActiveSpan.tag("query.complete", Boolean.TRUE + "");
         try {
-            if (resolve != null) {
+            if (Objects.nonNull(resolve)) {
                 DatagramDnsResponse datagramDnsResponse = resolve.get(2, TimeUnit.SECONDS);
                 Constant.singleMap.remove(datagramDnsResponse.id());
                 return datagramDnsResponse;
             }
         } catch (Exception e) {
+            if (Objects.nonNull(resolve)) {
+                resolve.cancel(Boolean.TRUE);
+            }
             DnsRecord dnsRecord = query.recordAt(DnsSection.QUESTION);
             String name = dnsRecord == null ? "n/a" : dnsRecord.name();
             String type = dnsRecord == null ? "n/a" : dnsRecord.type().name();
