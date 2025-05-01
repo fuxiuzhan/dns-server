@@ -25,6 +25,15 @@ public interface CacheOperate {
     /**
      * @param host
      * @param dnsRecordType
+     * @return
+     */
+    default boolean exist(String host, String dnsRecordType) {
+        return Boolean.TRUE;
+    }
+
+    /**
+     * @param host
+     * @param dnsRecordType
      * @param baseRecordList
      * @param ttl
      * @return

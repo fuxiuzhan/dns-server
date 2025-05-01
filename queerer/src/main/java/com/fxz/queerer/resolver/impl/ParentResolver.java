@@ -2,7 +2,6 @@ package com.fxz.queerer.resolver.impl;
 
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.component.fuled.cat.starter.component.threadpool.CatTraceWrapper;
-import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.common.Constant;
 import com.fxz.dnscore.common.ThreadPoolConfig;
 import com.fxz.dnscore.io.DatagramDnsResponse;
@@ -12,12 +11,17 @@ import com.fxz.dnscore.processor.Processor;
 import com.fxz.dnscore.queerer.Query;
 import com.fxz.dnscore.server.impl.DnsClient;
 import com.fxz.dnscore.server.impl.resolver.Resolver;
+import com.fxz.fuled.common.chain.Filter;
+import com.fxz.fuled.common.chain.Invoker;
+import com.fxz.fuled.common.chain.annotation.FilterProperty;
 import com.fxz.queerer.CacheOperate;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
 import org.apache.skywalking.apm.toolkit.trace.Trace;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.CollectionUtils;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -34,14 +38,19 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author fxz
  */
 @Slf4j
-@Priority(order = 2)
-public class ParentResolver implements Resolver, Query {
+@FilterProperty(filterGroup = Constant.GROUP_QUERY, name = ParentResolver.NAME, order = -20)
+public class ParentResolver implements Resolver, Query, Filter<DefaultDnsQuestion, List<BaseRecord>> {
+    public static final String NAME = "ParentResolver";
+
     private int resolveTimeOut;
     private final int DNS_SERVER_PORT = 53;
     private List<String> domainServers;
     private Map<DnsRecordType, Processor> processorMap;
     private AtomicLong counter = new AtomicLong(0);
     private List<CacheOperate> cacheOperates;
+
+    @Value("${dns.query.cache.fixed.ttl:0}")
+    private int fixedTtl;
 
     public void setCacheOperates(List<CacheOperate> cacheOperates) {
         this.cacheOperates = cacheOperates;
@@ -154,8 +163,10 @@ public class ParentResolver implements Resolver, Query {
                     String host = datagramDnsResponse.recordAt(DnsSection.QUESTION).name();
                     DnsRecordType type = datagramDnsResponse.recordAt(DnsSection.QUESTION).type();
                     int ttl = (int) datagramDnsResponse.recordAt(DnsSection.ANSWER, 0).timeToLive();
-                    for (int i = 0; i < cacheOperates.size(); i++) {
-                        cacheOperates.get(i).set(host, type, baseRecords, ttl);
+                    if (!CollectionUtils.isEmpty(baseRecords)) {
+                        for (int i = 0; i < cacheOperates.size(); i++) {
+                            cacheOperates.get(i).set(host, type, baseRecords, Math.max(fixedTtl, ttl));
+                        }
                     }
                 }
                 ReferenceCountUtil.release(datagramDnsResponse);
@@ -166,4 +177,8 @@ public class ParentResolver implements Resolver, Query {
         return null;
     }
 
+    @Override
+    public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
+        return findRecords(question);
+    }
 }
