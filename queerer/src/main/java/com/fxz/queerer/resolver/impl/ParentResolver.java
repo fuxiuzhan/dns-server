@@ -13,6 +13,7 @@ import com.fxz.dnscore.server.impl.resolver.Resolver;
 import com.fxz.fuled.common.chain.Filter;
 import com.fxz.fuled.common.chain.Invoker;
 import com.fxz.fuled.common.chain.annotation.FilterProperty;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
 import com.fxz.queerer.CacheOperate;
 import io.netty.handler.codec.dns.*;
 import io.netty.util.ReferenceCountUtil;
@@ -166,10 +167,12 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
             }
         }
         ActiveSpan.tag("query.dns.result", "null");
-        return null;
+        return new ArrayList<>();
     }
 
+    @Monitor(printParams = false)
     @Trace
+    @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
         List<BaseRecord> records = findRecords(question);

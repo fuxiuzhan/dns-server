@@ -1,9 +1,11 @@
 package com.fxz.dnscore.queerer;
 
+import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.common.Constant;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.fuled.common.chain.FilterChainManger;
 import com.fxz.fuled.common.chain.Invoker;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DnsSection;
@@ -34,10 +36,12 @@ public class QueryManger {
 
     @PostConstruct
     public void init() {
-        queryInvoker = filterChainManger.getInvoker(Constant.GROUP_QUERY, o -> null);
+        queryInvoker = filterChainManger.getInvoker(Constant.GROUP_QUERY, o -> new ArrayList<>());
     }
 
+    @Monitor(printParams = false)
     @Trace
+    @CatTracing
     public List<BaseRecord> findRecords(DefaultDnsQuestion question, DatagramDnsQuery query) {
         List<String> orDefault = filterIps.getOrDefault(query.sender().getAddress().getHostAddress(), new ArrayList<>());
         if (orDefault.contains(query.recordAt(DnsSection.QUESTION).type().name())) {

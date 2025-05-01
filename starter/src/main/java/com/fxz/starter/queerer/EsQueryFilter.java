@@ -8,6 +8,7 @@ import com.fxz.exporter.elastic.objects.SourceRecord;
 import com.fxz.fuled.common.chain.Filter;
 import com.fxz.fuled.common.chain.Invoker;
 import com.fxz.fuled.common.chain.annotation.FilterProperty;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
 import com.fxz.queerer.util.CacheUtil;
 import com.fxz.queerer.util.ConvertUtil;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
@@ -33,6 +34,7 @@ public class EsQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRecord
         this.sourceRepository = sourceRepository;
     }
 
+    @Monitor(printParams = false)
     @Trace
     @CatTracing
     @Override
