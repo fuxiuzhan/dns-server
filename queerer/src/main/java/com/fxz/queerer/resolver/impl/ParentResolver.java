@@ -8,7 +8,6 @@ import com.fxz.dnscore.io.DatagramDnsResponse;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ResponseSemaphore;
 import com.fxz.dnscore.processor.Processor;
-import com.fxz.dnscore.queerer.Query;
 import com.fxz.dnscore.server.impl.DnsClient;
 import com.fxz.dnscore.server.impl.resolver.Resolver;
 import com.fxz.fuled.common.chain.Filter;
@@ -39,7 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Slf4j
 @FilterProperty(filterGroup = Constant.GROUP_QUERY, name = ParentResolver.NAME, order = -20)
-public class ParentResolver implements Resolver, Query, Filter<DefaultDnsQuestion, List<BaseRecord>> {
+public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List<BaseRecord>> {
     public static final String NAME = "ParentResolver";
 
     private int resolveTimeOut;
@@ -130,13 +129,6 @@ public class ParentResolver implements Resolver, Query, Filter<DefaultDnsQuestio
         return null;
     }
 
-    @Override
-    public String name() {
-        return "parentResolverQuery";
-    }
-
-    @Trace
-    @Override
     public List<BaseRecord> findRecords(DefaultDnsQuestion question) {
         if (!Constant.netStat) {
             return null;
@@ -177,8 +169,13 @@ public class ParentResolver implements Resolver, Query, Filter<DefaultDnsQuestio
         return null;
     }
 
+    @Trace
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        return findRecords(question);
+        List<BaseRecord> records = findRecords(question);
+        if (CollectionUtils.isEmpty(records)) {
+            return invoker.invoke(question);
+        }
+        return records;
     }
 }

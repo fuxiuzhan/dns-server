@@ -29,6 +29,7 @@ import com.fxz.queerer.query.impl.CacheQueryFilter;
 import com.fxz.queerer.query.impl.RedirectQueryFilter;
 import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
+import com.fxz.starter.queerer.EsQueryFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +53,7 @@ import java.util.stream.Collectors;
  * @author xiuzhan.fu
  */
 @Component
-@Import({BeforeQueryFilter.class, CacheQueryFilter.class, RedirectQueryFilter.class, FilterChainManger.class})
+@Import({BeforeQueryFilter.class, CacheQueryFilter.class, RedirectQueryFilter.class, EsQueryFilter.class, FilterChainManger.class})
 @Slf4j
 public class AutoConfig {
 
