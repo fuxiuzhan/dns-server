@@ -112,7 +112,7 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
         ActiveSpan.tag("query.complete", Boolean.TRUE + "");
         try {
             if (Objects.nonNull(resolve)) {
-                DatagramDnsResponse datagramDnsResponse = resolve.get(2, TimeUnit.SECONDS);
+                DatagramDnsResponse datagramDnsResponse = resolve.get(1, TimeUnit.SECONDS);
                 Constant.singleMap.remove(datagramDnsResponse.id());
                 return datagramDnsResponse;
             }
