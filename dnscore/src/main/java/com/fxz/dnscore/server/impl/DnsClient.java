@@ -47,7 +47,7 @@ public class DnsClient implements LifeCycle {
                                     .addLast(new com.fxz.dnscore.docec.DatagramDnsResponseDecoder())
                                     .addLast(new ChannelInboundHandlerAdapter() {
                                         @Override
-                                        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
                                             if (msg instanceof DatagramDnsResponse) {
                                                 DatagramDnsResponse res = (DatagramDnsResponse) msg;
                                                 log.info("DnsClient response ->{}", res);

@@ -42,7 +42,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List<BaseRecord>> {
     public static final String NAME = "ParentResolver";
 
-    private int resolveTimeOut;
     private final int DNS_SERVER_PORT = 53;
     private List<String> domainServers;
     private Map<DnsRecordType, Processor> processorMap;
@@ -52,12 +51,11 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
     @Value("${dns.query.cache.fixed.ttl:0}")
     private int fixedTtl;
 
+    @Value("${dns.query.parent.resolve.ttl:500}")
+    private int resolveTimeOut;
+
     public void setCacheOperates(List<CacheOperate> cacheOperates) {
         this.cacheOperates = cacheOperates;
-    }
-
-    public void setResolveTimeOut(int resolveTimeOut) {
-        this.resolveTimeOut = resolveTimeOut;
     }
 
     public void setDomainServers(List<String> domainServers) {
@@ -112,7 +110,7 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
         ActiveSpan.tag("query.complete", Boolean.TRUE + "");
         try {
             if (Objects.nonNull(resolve)) {
-                DatagramDnsResponse datagramDnsResponse = resolve.get(1, TimeUnit.SECONDS);
+                DatagramDnsResponse datagramDnsResponse = resolve.get(resolveTimeOut, TimeUnit.MILLISECONDS);
                 Constant.singleMap.remove(datagramDnsResponse.id());
                 return datagramDnsResponse;
             }

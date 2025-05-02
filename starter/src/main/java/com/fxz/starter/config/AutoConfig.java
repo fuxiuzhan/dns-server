@@ -62,8 +62,6 @@ public class AutoConfig {
     private String ip;
     @Value("${dns.server.port:53}")
     private Integer port;
-    @Value("${dns.resolve.timeout:1}")
-    private int resolveTimeOut;
     @Value("${dns.domain.servers:114.114.114.114}")
 //    @Value("#{'${dns.domain.servers}'.split(',')}")
     private String domainServers;
@@ -93,7 +91,6 @@ public class AutoConfig {
         parentResolver.setDnsClient(dnsClient);
         List<String> domainServerList = Arrays.stream(domainServers.split(",")).filter(a -> StringUtils.hasText(a)).collect(Collectors.toList());
         parentResolver.setDomainServers(domainServerList);
-        parentResolver.setResolveTimeOut(resolveTimeOut);
         parentResolver.setCacheOperates(cacheOperates);
         return parentResolver;
     }
