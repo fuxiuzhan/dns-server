@@ -90,6 +90,7 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
             ResponseSemaphore responseSemaphore = Constant.singleMap.get(query.id());
             if (responseSemaphore != null) {
                 responseSemaphore.getCountDownLatch().await(resolveTimeOut, TimeUnit.SECONDS);
+                Constant.singleMap.remove(query.id());
                 return responseSemaphore.getResponse();
             }
             return null;
