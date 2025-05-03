@@ -23,12 +23,12 @@ public class DatagramDnsResponseDecoder extends MessageToMessageDecoder<Datagram
     }
 
     public DatagramDnsResponseDecoder(DnsRecordDecoder recordDecoder) {
-        this.recordDecoder = (DnsRecordDecoder) ObjectUtil.checkNotNull(recordDecoder, "recordDecoder");
+        this.recordDecoder = ObjectUtil.checkNotNull(recordDecoder, "recordDecoder");
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, DatagramPacket packet, List<Object> out) throws Exception {
-        ByteBuf buf = (ByteBuf) packet.content();
+        ByteBuf buf = packet.content();
         DnsResponse response = newResponse(packet, buf);
         boolean success = false;
 

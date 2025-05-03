@@ -25,6 +25,7 @@ import com.fxz.queerer.cache.impl.LocalLRUCache;
 import com.fxz.queerer.cache.impl.RedisCache;
 import com.fxz.queerer.host.impl.RedisHostInfoExport;
 import com.fxz.queerer.query.impl.BeforeQueryFilter;
+import com.fxz.queerer.query.impl.BlackHostFilter;
 import com.fxz.queerer.query.impl.CacheQueryFilter;
 import com.fxz.queerer.query.impl.RedirectQueryFilter;
 import com.fxz.queerer.resolver.impl.ParentResolver;
@@ -53,7 +54,7 @@ import java.util.stream.Collectors;
  * @author xiuzhan.fu
  */
 @Component
-@Import({BeforeQueryFilter.class, CacheQueryFilter.class, RedirectQueryFilter.class, EsQueryFilter.class, FilterChainManger.class})
+@Import({BlackHostFilter.class, BeforeQueryFilter.class, CacheQueryFilter.class, RedirectQueryFilter.class, EsQueryFilter.class, FilterChainManger.class})
 @Slf4j
 public class AutoConfig {
 
@@ -61,8 +62,6 @@ public class AutoConfig {
     private String ip;
     @Value("${dns.server.port:53}")
     private Integer port;
-    @Value("${dns.resolve.timeout:3}")
-    private int resolveTimeOut;
     @Value("${dns.domain.servers:114.114.114.114}")
 //    @Value("#{'${dns.domain.servers}'.split(',')}")
     private String domainServers;
@@ -92,7 +91,6 @@ public class AutoConfig {
         parentResolver.setDnsClient(dnsClient);
         List<String> domainServerList = Arrays.stream(domainServers.split(",")).filter(a -> StringUtils.hasText(a)).collect(Collectors.toList());
         parentResolver.setDomainServers(domainServerList);
-        parentResolver.setResolveTimeOut(resolveTimeOut);
         parentResolver.setCacheOperates(cacheOperates);
         return parentResolver;
     }
