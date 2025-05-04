@@ -25,6 +25,8 @@ public class RedirectQueryFilter implements Filter<DefaultDnsQuestion, List<Base
     @Value("${dns.server.name:}")
     private String nameServer;
 
+    @Value("${dns.query.filter.RedirectQueryFilter.enabled:true}")
+    private boolean enabled;
     @Value("${dns.server.name.ttl:3600}")
     private int nameServerTtl;
     public static final String NAME = "RedirectQueryFilter";
@@ -34,15 +36,18 @@ public class RedirectQueryFilter implements Filter<DefaultDnsQuestion, List<Base
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        log.info("name->{},queryHost->{}", NAME, question.name());
-        if (question.type().equals(DnsRecordType.PTR) && StringUtils.hasText(nameServer)) {
-            PTRRecord ptrRecord = new PTRRecord();
-            ptrRecord.setPtr(nameServer);
-            ptrRecord.setTtl(nameServerTtl);
-            ptrRecord.setHost(question.name());
-            ptrRecord.setType(DnsRecordType.PTR.name());
-            return Arrays.asList(ptrRecord);
-        }
-        return invoker.invoke(question);
+       if(enabled) {
+           log.info("name->{},queryHost->{}", NAME, question.name());
+           if (question.type().equals(DnsRecordType.PTR) && StringUtils.hasText(nameServer)) {
+               PTRRecord ptrRecord = new PTRRecord();
+               ptrRecord.setPtr(nameServer);
+               ptrRecord.setTtl(nameServerTtl);
+               ptrRecord.setHost(question.name());
+               ptrRecord.setType(DnsRecordType.PTR.name());
+               return Arrays.asList(ptrRecord);
+           }
+           return invoker.invoke(question);
+       }
+       return invoker.invoke(question);
     }
 }

@@ -42,21 +42,14 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List<BaseRecord>> {
     public static final String NAME = "ParentResolver";
 
+    @Value("${dns.query.filter.ParentResolver.enabled:true}")
+    private boolean enabled;
     private final int DNS_SERVER_PORT = 53;
     private List<String> domainServers;
     private Map<DnsRecordType, Processor> processorMap;
     private AtomicLong counter = new AtomicLong(0);
-    private List<CacheOperate> cacheOperates;
-
-    @Value("${dns.query.cache.fixed.ttl:0}")
-    private int fixedTtl;
-
     @Value("${dns.query.parent.resolve.ttl:500}")
     private int resolveTimeOut;
-
-    public void setCacheOperates(List<CacheOperate> cacheOperates) {
-        this.cacheOperates = cacheOperates;
-    }
 
     public void setDomainServers(List<String> domainServers) {
         this.domainServers = domainServers;
@@ -151,16 +144,6 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
                         baseRecords.add(processor.decode(datagramDnsResponse.getRawData(), dnsRecord));
                     }
                 }
-                if (cacheOperates != null && cacheOperates.size() > 0) {
-                    String host = datagramDnsResponse.recordAt(DnsSection.QUESTION).name();
-                    DnsRecordType type = datagramDnsResponse.recordAt(DnsSection.QUESTION).type();
-                    int ttl = (int) datagramDnsResponse.recordAt(DnsSection.ANSWER, 0).timeToLive();
-                    if (!CollectionUtils.isEmpty(baseRecords)) {
-                        for (int i = 0; i < cacheOperates.size(); i++) {
-                            cacheOperates.get(i).set(host, type, baseRecords, Math.max(fixedTtl, ttl));
-                        }
-                    }
-                }
                 ReferenceCountUtil.release(datagramDnsResponse);
                 return baseRecords;
             }
@@ -174,10 +157,13 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        List<BaseRecord> records = findRecords(question);
-        if (CollectionUtils.isEmpty(records)) {
-            return invoker.invoke(question);
+        if (enabled) {
+            List<BaseRecord> records = findRecords(question);
+            if (CollectionUtils.isEmpty(records)) {
+                return invoker.invoke(question);
+            }
+            return records;
         }
-        return records;
+        return invoker.invoke(question);
     }
 }

@@ -25,6 +25,12 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
     @Autowired
     private CacheOperate cacheOperate;
 
+    @Value("${dns.query.filter.CacheQueryFilter.enabled:true}")
+    private boolean enabled;
+
+    @Value("${dns.query.cache.fixed.ttl:0}")
+    private int fixedTtl;
+
     @Value("${dns.server.null.value.ttl:60}")
     private Integer nullExpr;
     public static final String NAME = "CacheQueryFilter";
@@ -34,18 +40,24 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        ActiveSpan.tag("class", CacheQueryFilter.class.getName());
-        ActiveSpan.tag("query.name", question.name());
-        ActiveSpan.tag("query.type", question.type() + "");
-        List<BaseRecord> baseRecords = cacheOperate.get(question.name(), question.type());
-        if (CollectionUtils.isEmpty(baseRecords) && !cacheOperate.exist(question.name(), question.type().name())) {
-            List<BaseRecord> invoke = invoker.invoke(question);
-            if (CollectionUtils.isEmpty(invoke)) {
-                //nop cache
-                cacheOperate.set(question.name(), question.type(), new ArrayList<>(), nullExpr);
+        if (enabled) {
+            ActiveSpan.tag("class", CacheQueryFilter.class.getName());
+            ActiveSpan.tag("query.name", question.name());
+            ActiveSpan.tag("query.type", question.type() + "");
+            List<BaseRecord> baseRecords = cacheOperate.get(question.name(), question.type());
+            if (CollectionUtils.isEmpty(baseRecords)) {
+                if (!cacheOperate.exist(question.name(), question.type().name())) {
+                    baseRecords = invoker.invoke(question);
+                    if (!CollectionUtils.isEmpty(baseRecords)) {
+                        //put into cache
+                        cacheOperate.set(question.name(), question.type(), baseRecords, Math.max(fixedTtl, fixedTtl));
+                    } else {
+                        cacheOperate.set(question.name(), question.type(), new ArrayList<>(), nullExpr);
+                    }
+                }
             }
-            return invoke;
+            return baseRecords;
         }
-        return baseRecords;
+        return invoker.invoke(question);
     }
 }

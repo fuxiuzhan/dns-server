@@ -7,6 +7,7 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
 import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import io.netty.handler.codec.dns.DefaultDnsRawRecord;
 import io.netty.handler.codec.dns.DnsRecordType;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,9 @@ public abstract class AbstractProcessor implements Processor {
         ProcessResult processResult = new ProcessResult();
         List<BaseRecord> records = queryManger.findRecords(question, query);
         processResult.setRecords(records);
-        processResult.setRawRecords(assemble(records));
+        if (!CollectionUtils.isEmpty(records)) {
+            processResult.setRawRecords(assemble(records));
+        }
         return processResult;
     }
 
