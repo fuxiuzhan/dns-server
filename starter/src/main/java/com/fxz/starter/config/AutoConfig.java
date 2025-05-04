@@ -86,12 +86,11 @@ public class AutoConfig {
     }
 
     @Bean
-    public ParentResolver injectParentResolver(@Autowired List<CacheOperate> cacheOperates, @Autowired DnsClient dnsClient) {
+    public ParentResolver injectParentResolver(@Autowired DnsClient dnsClient) {
         ParentResolver parentResolver = new ParentResolver();
         parentResolver.setDnsClient(dnsClient);
         List<String> domainServerList = Arrays.stream(domainServers.split(",")).filter(a -> StringUtils.hasText(a)).collect(Collectors.toList());
         parentResolver.setDomainServers(domainServerList);
-        parentResolver.setCacheOperates(cacheOperates);
         return parentResolver;
     }
 

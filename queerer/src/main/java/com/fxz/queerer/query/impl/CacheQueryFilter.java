@@ -28,6 +28,9 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
     @Value("${dns.query.filter.CacheQueryFilter.enabled:true}")
     private boolean enabled;
 
+    @Value("${dns.query.cache.fixed.ttl:0}")
+    private int fixedTtl;
+
     @Value("${dns.server.null.value.ttl:60}")
     private Integer nullExpr;
     public static final String NAME = "CacheQueryFilter";
@@ -52,6 +55,7 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
             }
             if (!CollectionUtils.isEmpty(baseRecords)) {
                 //put into cache
+                cacheOperate.set(question.name(), question.type(), baseRecords, Math.max(fixedTtl, fixedTtl));
             }
             return baseRecords;
         }
