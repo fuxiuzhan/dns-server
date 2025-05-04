@@ -50,8 +50,9 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
                     baseRecords = invoker.invoke(question);
                     if (!CollectionUtils.isEmpty(baseRecords)) {
                         //put into cache
-                        cacheOperate.set(question.name(), question.type(), baseRecords, Math.max(fixedTtl, fixedTtl));
+                        cacheOperate.set(question.name(), question.type(), baseRecords, fixedTtl);
                     } else {
+                        // null cache
                         cacheOperate.set(question.name(), question.type(), new ArrayList<>(), nullExpr);
                     }
                 }
