@@ -45,17 +45,16 @@ public class CacheQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRec
             ActiveSpan.tag("query.name", question.name());
             ActiveSpan.tag("query.type", question.type() + "");
             List<BaseRecord> baseRecords = cacheOperate.get(question.name(), question.type());
-            if (CollectionUtils.isEmpty(baseRecords) && !cacheOperate.exist(question.name(), question.type().name())) {
-                List<BaseRecord> invoke = invoker.invoke(question);
-                if (CollectionUtils.isEmpty(invoke)) {
-                    //nop cache
-                    cacheOperate.set(question.name(), question.type(), new ArrayList<>(), nullExpr);
+            if (CollectionUtils.isEmpty(baseRecords)) {
+                if (!cacheOperate.exist(question.name(), question.type().name())) {
+                    baseRecords = invoker.invoke(question);
+                    if (!CollectionUtils.isEmpty(baseRecords)) {
+                        //put into cache
+                        cacheOperate.set(question.name(), question.type(), baseRecords, Math.max(fixedTtl, fixedTtl));
+                    } else {
+                        cacheOperate.set(question.name(), question.type(), new ArrayList<>(), nullExpr);
+                    }
                 }
-                return invoke;
-            }
-            if (!CollectionUtils.isEmpty(baseRecords)) {
-                //put into cache
-                cacheOperate.set(question.name(), question.type(), baseRecords, Math.max(fixedTtl, fixedTtl));
             }
             return baseRecords;
         }
