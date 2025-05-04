@@ -15,6 +15,7 @@ import io.netty.handler.codec.dns.DefaultDnsQuestion;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.toolkit.trace.ActiveSpan;
 import org.apache.skywalking.apm.toolkit.trace.Trace;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -26,6 +27,9 @@ import java.util.Optional;
 @Slf4j
 @FilterProperty(filterGroup = Constant.GROUP_QUERY, name = EsQueryFilter.NAME, order = -30)
 public class EsQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRecord>> {
+
+    @Value("${dns.query.filter.EsQueryFilter.enabled:true}")
+    private boolean enabled;
     private BaseSourceRepository sourceRepository;
 
     public static final String NAME = "CacheQueryFilter";
@@ -39,19 +43,22 @@ public class EsQueryFilter implements Filter<DefaultDnsQuestion, List<BaseRecord
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        log.info("name->{},queryHost->{}", NAME, question.name());
-        ActiveSpan.tag("class", EsQueryFilter.class.getName());
-        ActiveSpan.tag("query.name", question.name());
-        ActiveSpan.tag("query.type", question.type() + "");
-        String id = CacheUtil.assembleKey(question.name(), question.type());
-        ActiveSpan.tag("query.id", id);
-        Optional<SourceRecord> byId = sourceRepository.findById(id);
-        if (byId.isPresent()) {
-            String result = byId.get().getResult();
-            ActiveSpan.tag("query.result", result);
-            if (StringUtils.hasText(result)) {
-                return ConvertUtil.decodeBaseRecordFromString(result);
+        if (enabled) {
+            log.info("name->{},queryHost->{}", NAME, question.name());
+            ActiveSpan.tag("class", EsQueryFilter.class.getName());
+            ActiveSpan.tag("query.name", question.name());
+            ActiveSpan.tag("query.type", question.type() + "");
+            String id = CacheUtil.assembleKey(question.name(), question.type());
+            ActiveSpan.tag("query.id", id);
+            Optional<SourceRecord> byId = sourceRepository.findById(id);
+            if (byId.isPresent()) {
+                String result = byId.get().getResult();
+                ActiveSpan.tag("query.result", result);
+                if (StringUtils.hasText(result)) {
+                    return ConvertUtil.decodeBaseRecordFromString(result);
+                }
             }
+            return invoker.invoke(question);
         }
         return invoker.invoke(question);
     }

@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List<BaseRecord>> {
     public static final String NAME = "ParentResolver";
 
+    @Value("${dns.query.filter.ParentResolver.enabled:true}")
+    private boolean enabled;
     private final int DNS_SERVER_PORT = 53;
     private List<String> domainServers;
     private Map<DnsRecordType, Processor> processorMap;
@@ -174,10 +176,13 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        List<BaseRecord> records = findRecords(question);
-        if (CollectionUtils.isEmpty(records)) {
-            return invoker.invoke(question);
+        if (enabled) {
+            List<BaseRecord> records = findRecords(question);
+            if (CollectionUtils.isEmpty(records)) {
+                return invoker.invoke(question);
+            }
+            return records;
         }
-        return records;
+        return invoker.invoke(question);
     }
 }

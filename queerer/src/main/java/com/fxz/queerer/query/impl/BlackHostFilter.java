@@ -20,6 +20,8 @@ import java.util.List;
 @FilterProperty(filterGroup = Constant.GROUP_QUERY, name = BlackHostFilter.NAME, order = 20)
 public class BlackHostFilter implements Filter<DefaultDnsQuestion, List<BaseRecord>> {
 
+    @Value("${dns.query.filter.BlackHostFilter.enabled:true}")
+    private boolean enabled;
     @Value("${dns.server.black.host:}")
     private List<String> blackHosts;
     public static final String NAME = "BlackHostFilter";
@@ -29,8 +31,11 @@ public class BlackHostFilter implements Filter<DefaultDnsQuestion, List<BaseReco
     @CatTracing
     @Override
     public List<BaseRecord> filter(DefaultDnsQuestion question, Invoker<DefaultDnsQuestion, List<BaseRecord>> invoker) {
-        if (CollectionUtils.isEmpty(blackHosts) && blackHosts.contains(question.name())) {
-            return new ArrayList<>();
+        if (enabled) {
+            if (CollectionUtils.isEmpty(blackHosts) && blackHosts.contains(question.name())) {
+                return new ArrayList<>();
+            }
+            return invoker.invoke(question);
         }
         return invoker.invoke(question);
     }
