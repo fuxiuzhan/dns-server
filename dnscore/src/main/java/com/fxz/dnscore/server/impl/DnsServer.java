@@ -1,6 +1,7 @@
 package com.fxz.dnscore.server.impl;
 
 import com.fxz.dnscore.docec.DatagramDnsResponseEncoder;
+import com.fxz.dnscore.filter.IpFilter;
 import com.fxz.dnscore.server.LifeCycle;
 import com.fxz.fuled.dynamic.threadpool.ThreadPoolRegistry;
 import io.netty.bootstrap.Bootstrap;
@@ -67,6 +68,7 @@ public class DnsServer implements LifeCycle {
                         .handler(new ChannelInitializer<NioDatagramChannel>() {
                             @Override
                             protected void initChannel(NioDatagramChannel nioDatagramChannel) throws Exception {
+                                nioDatagramChannel.pipeline().addLast(new IpFilter());
                                 nioDatagramChannel.pipeline().addLast(new DatagramDnsQueryDecoder());
                                 nioDatagramChannel.pipeline().addLast(new DatagramDnsResponseEncoder());
                                 nioDatagramChannel.pipeline().addLast(handler);

@@ -24,10 +24,7 @@ import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.cache.impl.LocalLRUCache;
 import com.fxz.queerer.cache.impl.RedisCache;
 import com.fxz.queerer.host.impl.RedisHostInfoExport;
-import com.fxz.queerer.query.impl.BeforeQueryFilter;
-import com.fxz.queerer.query.impl.BlackHostFilter;
-import com.fxz.queerer.query.impl.CacheQueryFilter;
-import com.fxz.queerer.query.impl.PtrQueryFilter;
+import com.fxz.queerer.query.impl.*;
 import com.fxz.queerer.resolver.impl.ParentResolver;
 import com.fxz.starter.exporter.EsExporter;
 import com.fxz.starter.queerer.EsQueryFilter;
@@ -54,7 +51,7 @@ import java.util.stream.Collectors;
  * @author xiuzhan.fu
  */
 @Component
-@Import({BlackHostFilter.class, BeforeQueryFilter.class, CacheQueryFilter.class, PtrQueryFilter.class, EsQueryFilter.class, FilterChainManger.class})
+@Import({RegexBlackHostFilter.class, BlackHostFilter.class, BeforeQueryFilter.class, CacheQueryFilter.class, PtrQueryFilter.class, EsQueryFilter.class, FilterChainManger.class})
 @Slf4j
 public class AutoConfig {
 

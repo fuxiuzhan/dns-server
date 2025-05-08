@@ -1,12 +1,9 @@
 package com.fxz.starter.exporter;
 
-import cn.z.ip2region.Ip2Region;
-import cn.z.ip2region.Region;
 import com.alibaba.fastjson.JSON;
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
 import com.fxz.dnscore.exporter.Exporter;
-import com.fxz.dnscore.filter.IpFilter;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.server.impl.DHCPSniffer;
 import com.fxz.exporter.elastic.baserepository.BaseRecordRepository;
@@ -30,15 +27,13 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -88,67 +83,69 @@ public class EsExporter implements Exporter {
                 , query.sender().getAddress().getHostAddress(), query.recordAt(DnsSection.QUESTION).type().name()
                 , query.recordAt(DnsSection.QUESTION).name()
                 , records == null ? "n/a" : JSON.toJSONString(records));
-        if (records != null && records.size() > 0 && query != null && query.count(DnsSection.QUESTION) > 0) {
-            /**
-             * record history
-             */
-            QueryRecord queryRecord = new QueryRecord();
-            queryRecord.setAppName(appName);
-            queryRecord.setId(System.currentTimeMillis() + "_" + counter.getAndIncrement());
-            queryRecord.setAnswerCnt(records.size());
-            queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
-            String ip = query.sender().getAddress().getHostAddress();
-            queryRecord.setIp(ip);
-            DHCPSniffer.HostInfo hostInfo = DHCPSniffer.hostInfoMap.get(ip);
-            if (Objects.nonNull(hostInfo)) {
-                queryRecord.setMac(hostInfo.getMac());
-                queryRecord.setHostName(hostInfo.getHostName());
-            } else {
-                String s = stringRedisTemplate.opsForValue().get(PREFIX + ip);
-                if (!StringUtils.isEmpty(s)) {
-                    DHCPSniffer.HostInfo o = JSON.parseObject(s, DHCPSniffer.HostInfo.class);
-                    if (Objects.nonNull(o) && !StringUtils.isEmpty(o.getIp())) {
-                        queryRecord.setMac(o.getMac());
-                        queryRecord.setHostName(o.getHostName());
-                        log.info("query host info from redis ->{}", s);
-                    }
+        if (Objects.isNull(records)) {
+            records = new ArrayList<>();
+        }
+        /**
+         * record history
+         */
+        QueryRecord queryRecord = new QueryRecord();
+        queryRecord.setAppName(appName);
+        queryRecord.setId(System.currentTimeMillis() + "_" + counter.getAndIncrement());
+        queryRecord.setAnswerCnt(records.size());
+        queryRecord.setHost(query.recordAt(DnsSection.QUESTION).name());
+        String ip = query.sender().getAddress().getHostAddress();
+        queryRecord.setIp(ip);
+        DHCPSniffer.HostInfo hostInfo = DHCPSniffer.hostInfoMap.get(ip);
+        if (Objects.nonNull(hostInfo)) {
+            queryRecord.setMac(hostInfo.getMac());
+            queryRecord.setHostName(hostInfo.getHostName());
+        } else {
+            String s = stringRedisTemplate.opsForValue().get(PREFIX + ip);
+            if (!StringUtils.isEmpty(s)) {
+                DHCPSniffer.HostInfo o = JSON.parseObject(s, DHCPSniffer.HostInfo.class);
+                if (Objects.nonNull(o) && !StringUtils.isEmpty(o.getIp())) {
+                    queryRecord.setMac(o.getMac());
+                    queryRecord.setHostName(o.getHostName());
+                    log.info("query host info from redis ->{}", s);
                 }
             }
-            IPInfo ipInfo = IPInfoUtils.getIpInfo(ip);
-            if (Objects.nonNull(ipInfo)) {
-                queryRecord.setCountry(ipInfo.getCountry());
-                queryRecord.setProvince(ipInfo.getProvince());
-                queryRecord.setOverseas(ipInfo.isOverseas());
-                queryRecord.setIsp(ipInfo.getIsp());
-                queryRecord.setLat(ipInfo.getLat());
-                queryRecord.setLng(ipInfo.getLng());
-                queryRecord.setAddress(ipInfo.getAddress());
-                queryRecord.setGeoPoint(new GeoPoint(ipInfo.getLat(), ipInfo.getLng()));
-            }
-            queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            queryRecord.setDateStr(formatter.format(new Date()));
-            queryRecord.setDate(new Date());
-            queryRecord.setRes(JSON.toJSONString(records));
-            IndexRequest queryIndexRequest = new IndexRequest(indexName(queryRecord));
-            queryIndexRequest.id(queryRecord.getId());
-            queryIndexRequest.source(JSON.toJSONString(queryRecord), XContentType.JSON);
-            try {
-                highLevelClient.index(queryIndexRequest, RequestOptions.DEFAULT);
-            } catch (IOException e) {
-                log.error("flush es error->{}", e);
-            }
+        }
+        IPInfo ipInfo = IPInfoUtils.getIpInfo(ip);
+        if (Objects.nonNull(ipInfo)) {
+            queryRecord.setCountry(ipInfo.getCountry());
+            queryRecord.setProvince(ipInfo.getProvince());
+            queryRecord.setOverseas(ipInfo.isOverseas());
+            queryRecord.setIsp(ipInfo.getIsp());
+            queryRecord.setLat(ipInfo.getLat());
+            queryRecord.setLng(ipInfo.getLng());
+            queryRecord.setAddress(ipInfo.getAddress());
+            queryRecord.setGeoPoint(new GeoPoint(ipInfo.getLat(), ipInfo.getLng()));
+        }
+        queryRecord.setQueryType(query.recordAt(DnsSection.QUESTION).type().name());
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        queryRecord.setDateStr(formatter.format(new Date()));
+        queryRecord.setDate(new Date());
+        queryRecord.setRes(JSON.toJSONString(records));
+        IndexRequest queryIndexRequest = new IndexRequest(indexName(queryRecord));
+        queryIndexRequest.id(queryRecord.getId());
+        queryIndexRequest.source(JSON.toJSONString(queryRecord), XContentType.JSON);
+        try {
+            highLevelClient.index(queryIndexRequest, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            log.error("flush es error->{}", e);
+        }
 //            recordRepository.save(queryRecord);
-            ActiveSpan.tag("recordType", "QueryRecord");
-            ActiveSpan.tag("appName", appName);
-            ActiveSpan.tag("id", queryRecord.getId());
-            ActiveSpan.tag("answerCnt", queryRecord.getAnswerCnt() + "");
-            ActiveSpan.tag("host", queryRecord.getHost());
-            ActiveSpan.tag("ip", queryRecord.getIp());
-            ActiveSpan.tag("queryType", queryRecord.getQueryType());
-            ActiveSpan.tag("date", queryRecord.getDateStr());
-            ActiveSpan.tag("res", queryRecord.getRes());
-
+        ActiveSpan.tag("recordType", "QueryRecord");
+        ActiveSpan.tag("appName", appName);
+        ActiveSpan.tag("id", queryRecord.getId());
+        ActiveSpan.tag("answerCnt", queryRecord.getAnswerCnt() + "");
+        ActiveSpan.tag("host", queryRecord.getHost());
+        ActiveSpan.tag("ip", queryRecord.getIp());
+        ActiveSpan.tag("queryType", queryRecord.getQueryType());
+        ActiveSpan.tag("date", queryRecord.getDateStr());
+        ActiveSpan.tag("res", queryRecord.getRes());
+        if (!CollectionUtils.isEmpty(records) && query != null && query.count(DnsSection.QUESTION) > 0) {
             /**
              * record source
              */
