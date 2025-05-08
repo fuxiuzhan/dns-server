@@ -29,6 +29,9 @@ public class QueryManger {
     @Value("#{${dns.server.filter.ips:{}}}")
     private Map<String, List<String>> filterIps;
 
+    @Value("${dns.server.filter.black.ips:}")
+    private List<String> blackIps = new ArrayList<>();
+
     @Autowired
     private FilterChainManger filterChainManger;
 
@@ -44,7 +47,7 @@ public class QueryManger {
     @CatTracing
     public List<BaseRecord> findRecords(DefaultDnsQuestion question, DatagramDnsQuery query) {
         List<String> orDefault = filterIps.getOrDefault(query.sender().getAddress().getHostAddress(), new ArrayList<>());
-        if (orDefault.contains(query.recordAt(DnsSection.QUESTION).type().name())) {
+        if (blackIps.contains(query.sender().getAddress().getHostAddress()) || orDefault.contains(query.recordAt(DnsSection.QUESTION).type().name())) {
             return new ArrayList<>();
         }
         return queryInvoker.invoke(question);

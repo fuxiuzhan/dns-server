@@ -82,7 +82,7 @@ public class ParentResolver implements Resolver, Filter<DefaultDnsQuestion, List
         FutureTask<DatagramDnsResponse> futureTask = new FutureTask(() -> {
             ResponseSemaphore responseSemaphore = Constant.singleMap.get(query.id());
             if (responseSemaphore != null) {
-                responseSemaphore.getCountDownLatch().await(resolveTimeOut, TimeUnit.SECONDS);
+                responseSemaphore.getCountDownLatch().await(resolveTimeOut, TimeUnit.MILLISECONDS);
                 Constant.singleMap.remove(query.id());
                 return responseSemaphore.getResponse();
             }
