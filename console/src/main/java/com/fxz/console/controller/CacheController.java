@@ -1,6 +1,7 @@
 package com.fxz.console.controller;
 
 import com.fxz.dnscore.objects.BaseRecord;
+import com.fxz.fuled.logger.starter.annotation.Monitor;
 import com.fxz.queerer.CacheOperate;
 import com.fxz.queerer.util.CacheUtil;
 import com.fxz.queerer.util.ConvertUtil;
@@ -27,6 +28,7 @@ public class CacheController {
     RedisTemplate redisTemplate;
 
     @PostMapping("/query")
+    @Monitor
     public List<BaseRecord> query(String host, String type) {
         if (StringUtils.hasText(host) && StringUtils.hasText(type)) {
             List<BaseRecord> baseRecordList1 = cacheOperate.get(host, type.toUpperCase());
