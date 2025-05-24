@@ -1,13 +1,12 @@
 package com.fxz.dnscore;
 
-import com.dianping.cat.Cat;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.exporter.ExporterManager;
 import com.fxz.dnscore.objects.BaseRecord;
 import com.fxz.dnscore.objects.common.ProcessResult;
 import com.fxz.dnscore.processor.Processor;
 import com.fxz.dnscore.processor.ProcessorManger;
-import com.fxz.fuled.dynamic.threadpool.RpcContext;
 import com.fxz.fuled.logger.starter.annotation.Monitor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.dns.*;
@@ -108,6 +107,7 @@ public class MainProcessor implements InitializingBean {
     @Trace
     @CatTracing
     @Monitor
+    @SentinelResource(value = "dnsProcess")
     public void processDnsQuery(ChannelHandlerContext ctx, DatagramDnsQuery query) {
         if (filter(ctx, query)) {
             DefaultDnsQuestion question = query.recordAt(DnsSection.QUESTION);
