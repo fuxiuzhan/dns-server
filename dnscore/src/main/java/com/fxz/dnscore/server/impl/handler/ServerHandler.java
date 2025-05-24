@@ -10,7 +10,7 @@ import io.netty.handler.codec.dns.DatagramDnsQuery;
  */
 
 public class ServerHandler extends SimpleChannelInboundHandler<DatagramDnsQuery> {
-    MainProcessor mainProcessor;
+    private MainProcessor mainProcessor;
 
     public void setMainProcessor(MainProcessor mainProcessor) {
         this.mainProcessor = mainProcessor;

@@ -1,5 +1,6 @@
 package com.fxz.starter.exporter;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.fastjson.JSON;
 import com.fxz.component.fuled.cat.starter.annotation.CatTracing;
 import com.fxz.dnscore.annotation.Priority;
@@ -76,6 +77,7 @@ public class EsExporter implements Exporter {
      */
     @Trace
     @CatTracing
+    @SentinelResource(value = "esExporter")
     public void export(ChannelHandlerContext ctx, DatagramDnsQuery query, DatagramDnsResponse response, List<BaseRecord> records) {
         ActiveSpan.tag("class", EsExporter.class.getName());
         log.info("exporter->{},sender->{},type->{},host->{},returns->{}"
