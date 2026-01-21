@@ -93,6 +93,12 @@ public class SystemInfoSummary {
          * 可用内存数
          */
         private long free;
+
+        private long swapSize;
+
+        private long swapFree;
+
+        private long swapUsed;
     }
 
     @Data
@@ -105,6 +111,9 @@ public class SystemInfoSummary {
          * 磁盘列表
          */
         private List<Disk> disks;
+
+        private long totalR;
+        private long totalW;
     }
 
     @Data

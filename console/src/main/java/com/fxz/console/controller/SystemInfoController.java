@@ -1,6 +1,9 @@
 package com.fxz.console.controller;
 
 import com.fxz.console.pojo.SystemInfoSummary;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,15 +16,30 @@ import oshi.util.FormatUtil;
 import oshi.util.Util;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/system")
 public class SystemInfoController {
+
+    private static List<String> diskNames;
+    private static List<String> ips;
+
+
+    private static List<String> mappers;
+
+    public static void setIps(@Value("${system.info.ips:}") List<String> ips) {
+        SystemInfoController.ips = ips;
+    }
+
+    public static void setDiskNames(@Value("${system.info.disks:}") List<String> diskNames) {
+        SystemInfoController.diskNames = diskNames;
+    }
+
+    public static void setMappers(@Value("${system.info.mappers:}") List<String> mappers) {
+        SystemInfoController.mappers = mappers;
+    }
 
     private static Map<String, DiskStats> prevDiskStats = new HashMap<>();
     private static Map<String, NetStats> prevNetStats = new HashMap<>();
@@ -122,26 +140,30 @@ public class SystemInfoController {
         List<HWDiskStore> diskStores = hardware.getDiskStores();
         long currentTime = System.currentTimeMillis();
         for (HWDiskStore diskStore : diskStores) {
-            diskStore.updateAttributes();
-            String diskName = diskStore.getName();
-            prevDiskStats.put(diskName, new DiskStats(
-                    diskStore.getReadBytes(),
-                    diskStore.getWriteBytes(),
-                    currentTime
-            ));
+            if (isMatch(diskStore.getModel(), diskNames)) {
+                diskStore.updateAttributes();
+                String diskName = diskStore.getName();
+                prevDiskStats.put(diskName, new DiskStats(
+                        diskStore.getReadBytes(),
+                        diskStore.getWriteBytes(),
+                        currentTime
+                ));
+            }
         }
 
         // 初始化网络基准数据
         prevNetStats.clear();
         List<NetworkIF> networkIFs = hardware.getNetworkIFs();
         for (NetworkIF net : networkIFs) {
-            net.updateAttributes();
-            String netName = net.getName();
-            prevNetStats.put(netName, new NetStats(
-                    net.getBytesRecv(),
-                    net.getBytesSent(),
-                    currentTime
-            ));
+            if (isMatch(!CollectionUtils.isEmpty(Arrays.asList(net.getIPv4addr())) ? net.getIPv4addr()[0] : "null", ips)) {
+                net.updateAttributes();
+                String netName = net.getName();
+                prevNetStats.put(netName, new NetStats(
+                        net.getBytesRecv(),
+                        net.getBytesSent(),
+                        currentTime
+                ));
+            }
         }
     }
 
@@ -221,11 +243,12 @@ public class SystemInfoController {
     private static SystemInfoSummary.MemoryInfo getMemoryInfo(HardwareAbstractionLayer hardware) {
         SystemInfoSummary.MemoryInfo memoryInfo = new SystemInfoSummary.MemoryInfo();
         GlobalMemory memory = hardware.getMemory();
-
         memoryInfo.setSize(memory.getTotal());
         memoryInfo.setUsed(memory.getTotal() - memory.getAvailable());
         memoryInfo.setFree(memory.getAvailable());
-
+        memoryInfo.setSwapSize(memory.getVirtualMemory().getSwapTotal());
+        memoryInfo.setSwapUsed(memory.getVirtualMemory().getSwapUsed());
+        memoryInfo.setSwapFree(memory.getVirtualMemory().getSwapUsed() - memory.getVirtualMemory().getSwapUsed());
         return memoryInfo;
     }
 
@@ -238,20 +261,30 @@ public class SystemInfoController {
         List<OSFileStore> fsArray = fileSystem.getFileStores();
 
         for (OSFileStore fs : fsArray) {
-            SystemInfoSummary.FileSystemInfo fsInfo = new SystemInfoSummary.FileSystemInfo();
-            fsInfo.setMounted(fs.getMount());
-            fsInfo.setSize(fs.getTotalSpace());
-            long usableSpace = fs.getUsableSpace();
-            fsInfo.setUsed(fs.getTotalSpace() - usableSpace);
-            fsInfo.setFree(usableSpace);
-            fileSystems.add(fsInfo);
+            if (isMatch(fs.getMount(), mappers)) {
+                SystemInfoSummary.FileSystemInfo fsInfo = new SystemInfoSummary.FileSystemInfo();
+                fsInfo.setMounted(fs.getMount());
+                fsInfo.setSize(fs.getTotalSpace());
+                long usableSpace = fs.getUsableSpace();
+                fsInfo.setUsed(fs.getTotalSpace() - usableSpace);
+                fsInfo.setFree(usableSpace);
+                fileSystems.add(fsInfo);
+            }
         }
 
         diskInfo.setFileSystems(fileSystems);
 
         // 获取物理磁盘信息
         diskInfo.setDisks(getPhysicalDisks(hardware));
-
+        if (!CollectionUtils.isEmpty(diskInfo.getDisks())) {
+            long totalR = 0, totalW = 0;
+            for (SystemInfoSummary.Disk disk : diskInfo.getDisks()) {
+                totalR += disk.getRead();
+                totalW += disk.getWrite();
+            }
+            diskInfo.setTotalR(totalR);
+            diskInfo.setTotalW(totalW);
+        }
         return diskInfo;
     }
 
@@ -259,7 +292,6 @@ public class SystemInfoController {
         List<SystemInfoSummary.Disk> disks = new ArrayList<>();
         List<HWDiskStore> diskStores = hardware.getDiskStores();
         long currentTime = System.currentTimeMillis();
-
         for (HWDiskStore diskStore : diskStores) {
             // 更新磁盘信息以获取最新数据
             diskStore.updateAttributes();
@@ -306,7 +338,6 @@ public class SystemInfoController {
             // 更新上一次的数据
             prevDiskStats.put(diskName, new DiskStats(readBytes, writeBytes, currentTime));
         }
-
         return disks;
     }
 
@@ -485,6 +516,18 @@ public class SystemInfoController {
         prevDiskStats.clear();
         prevNetStats.clear();
         prevCpuTicks = null;
+    }
+
+    public static boolean isMatch(String str, List<String> lists) {
+        if (StringUtils.isEmpty(str) || CollectionUtils.isEmpty(lists)) {
+            return Boolean.TRUE;
+        }
+        for (String list : lists) {
+            if (str.contains(list)) {
+                return Boolean.TRUE;
+            }
+        }
+        return Boolean.FALSE;
     }
 
 }
