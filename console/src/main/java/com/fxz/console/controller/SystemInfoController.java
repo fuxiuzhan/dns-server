@@ -24,20 +24,23 @@ import java.util.concurrent.TimeUnit;
 public class SystemInfoController {
 
     private static List<String> diskNames;
-    private static List<String> ips;
+    private static List<String> eths;
 
 
     private static List<String> mappers;
 
-    public static void setIps(@Value("${system.info.ips:}") List<String> ips) {
-        SystemInfoController.ips = ips;
+    @Value("${system.info.eths:}")
+    public void setIps(List<String> eths) {
+        SystemInfoController.eths = eths;
     }
 
-    public static void setDiskNames(@Value("${system.info.disks:}") List<String> diskNames) {
+    @Value("${system.info.disks:}")
+    public void setDiskNames(List<String> diskNames) {
         SystemInfoController.diskNames = diskNames;
     }
 
-    public static void setMappers(@Value("${system.info.mappers:}") List<String> mappers) {
+    @Value("${system.info.mappers:}")
+    public void setMappers(List<String> mappers) {
         SystemInfoController.mappers = mappers;
     }
 
@@ -140,7 +143,7 @@ public class SystemInfoController {
         List<HWDiskStore> diskStores = hardware.getDiskStores();
         long currentTime = System.currentTimeMillis();
         for (HWDiskStore diskStore : diskStores) {
-            if (isMatch(diskStore.getModel(), diskNames)) {
+            if (isMatch(diskStore.getModel(), diskNames, Boolean.TRUE)) {
                 diskStore.updateAttributes();
                 String diskName = diskStore.getName();
                 prevDiskStats.put(diskName, new DiskStats(
@@ -155,7 +158,7 @@ public class SystemInfoController {
         prevNetStats.clear();
         List<NetworkIF> networkIFs = hardware.getNetworkIFs();
         for (NetworkIF net : networkIFs) {
-            if (isMatch(!CollectionUtils.isEmpty(Arrays.asList(net.getIPv4addr())) ? net.getIPv4addr()[0] : "null", ips)) {
+            if (isMatch(net.getName(), eths, Boolean.TRUE)) {
                 net.updateAttributes();
                 String netName = net.getName();
                 prevNetStats.put(netName, new NetStats(
@@ -248,7 +251,7 @@ public class SystemInfoController {
         memoryInfo.setFree(memory.getAvailable());
         memoryInfo.setSwapSize(memory.getVirtualMemory().getSwapTotal());
         memoryInfo.setSwapUsed(memory.getVirtualMemory().getSwapUsed());
-        memoryInfo.setSwapFree(memory.getVirtualMemory().getSwapUsed() - memory.getVirtualMemory().getSwapUsed());
+        memoryInfo.setSwapFree(memory.getVirtualMemory().getSwapTotal() - memory.getVirtualMemory().getSwapUsed());
         return memoryInfo;
     }
 
@@ -261,7 +264,7 @@ public class SystemInfoController {
         List<OSFileStore> fsArray = fileSystem.getFileStores();
 
         for (OSFileStore fs : fsArray) {
-            if (isMatch(fs.getMount(), mappers)) {
+            if (isMatch(fs.getMount(), mappers, Boolean.TRUE)) {
                 SystemInfoSummary.FileSystemInfo fsInfo = new SystemInfoSummary.FileSystemInfo();
                 fsInfo.setMounted(fs.getMount());
                 fsInfo.setSize(fs.getTotalSpace());
@@ -273,6 +276,16 @@ public class SystemInfoController {
         }
 
         diskInfo.setFileSystems(fileSystems);
+        if (!CollectionUtils.isEmpty(diskInfo.getFileSystems())) {
+            long totalSize = 0, totalUsed = 0;
+            for (SystemInfoSummary.FileSystemInfo system : diskInfo.getFileSystems()) {
+                totalSize += system.getSize();
+                totalUsed += system.getUsed();
+            }
+            diskInfo.setSize(totalSize);
+            diskInfo.setUsed(totalUsed);
+            diskInfo.setFree(totalSize - totalUsed);
+        }
 
         // 获取物理磁盘信息
         diskInfo.setDisks(getPhysicalDisks(hardware));
@@ -328,11 +341,9 @@ public class SystemInfoController {
 
             disk.setRead(readSpeed);
             disk.setWrite(writeSpeed);
-
             // 使用磁盘名称或序列号作为标识
             String serial = diskStore.getSerial().trim();
             disk.setMounted(serial.isEmpty() ? diskName : serial);
-
             disks.add(disk);
 
             // 更新上一次的数据
@@ -346,65 +357,52 @@ public class SystemInfoController {
         List<SystemInfoSummary.NetCard> cards = new ArrayList<>();
         List<NetworkIF> networkIFs = hardware.getNetworkIFs();
         long currentTime = System.currentTimeMillis();
-
         long totalRx = 0;
         long totalTx = 0;
-
         for (NetworkIF net : networkIFs) {
             // 更新网络接口信息
             net.updateAttributes();
-
             String netName = net.getName();
             String[] ipv4 = net.getIPv4addr();
             long rxBytes = net.getBytesRecv();
             long txBytes = net.getBytesSent();
-
             // 只统计有流量的网卡
             if (rxBytes == 0 && txBytes == 0) {
                 continue;
             }
-
             SystemInfoSummary.NetCard card = new SystemInfoSummary.NetCard();
             card.setEth(netName);
-
             // 获取IPv4地址
             String ipAddress = "";
             if (ipv4.length > 0 && !ipv4[0].isEmpty()) {
                 ipAddress = ipv4[0];
             }
             card.setIpv4(ipAddress);
-
             // 计算网络速度
             long rxSpeed = 0;
             long txSpeed = 0;
-
             if (prevNetStats.containsKey(netName)) {
                 NetStats prevStats = prevNetStats.get(netName);
                 long timeDiff = Math.max(1, currentTime - prevStats.timestamp);
                 long rxDiff = Math.max(0, rxBytes - prevStats.rxBytes);
                 long txDiff = Math.max(0, txBytes - prevStats.txBytes);
-
                 // 计算每秒字节数
                 rxSpeed = rxDiff * 1000 / timeDiff;
                 txSpeed = txDiff * 1000 / timeDiff;
             }
-
             card.setRx(rxSpeed);
             card.setTx(txSpeed);
-
-            cards.add(card);
-
             totalRx += rxSpeed;
             totalTx += txSpeed;
-
             // 更新上一次的数据
             prevNetStats.put(netName, new NetStats(rxBytes, txBytes, currentTime));
+            if (isMatch(net.getName(), eths, Boolean.TRUE)) {
+                cards.add(card);
+            }
         }
-
         netInfo.setCards(cards);
         netInfo.setTotalRx(totalRx);
         netInfo.setTotalTx(totalTx);
-
         return netInfo;
     }
 
@@ -518,13 +516,19 @@ public class SystemInfoController {
         prevCpuTicks = null;
     }
 
-    public static boolean isMatch(String str, List<String> lists) {
+    public static boolean isMatch(String str, List<String> lists, boolean isEq) {
         if (StringUtils.isEmpty(str) || CollectionUtils.isEmpty(lists)) {
             return Boolean.TRUE;
         }
         for (String list : lists) {
-            if (str.contains(list)) {
-                return Boolean.TRUE;
+            if (isEq) {
+                if (list.equalsIgnoreCase(str)) {
+                    return Boolean.TRUE;
+                }
+            } else {
+                if (str.contains(list)) {
+                    return Boolean.TRUE;
+                }
             }
         }
         return Boolean.FALSE;

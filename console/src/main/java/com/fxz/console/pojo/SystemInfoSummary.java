@@ -114,6 +114,9 @@ public class SystemInfoSummary {
 
         private long totalR;
         private long totalW;
+        private long size;
+        private long used;
+        private long free;
     }
 
     @Data
