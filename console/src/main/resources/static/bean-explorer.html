@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bean Explorer</title>
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
+    <style>
+        :root {
+            --text: #3f4747;
+            --text-light: #8a949b;
+            --line: #e8ebf0;
+            --line-dark: #d0d5dd;
+            --accent: #4a90e2;
+            --accent-light: #ecf4ff;
+            --success: #52c41a;
+            --warning: #faad14;
+            --danger: #ff4d4f;
+            --info: #1890ff;
+            --get: #61affe;
+            --post: #49cc90;
+            --put: #fca130;
+            --delete: #f93e3e;
+            --hover-bg: #f6f8fa;
+            --card-bg: #fff;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Droid Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background-attachment: fixed;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        h1, h2 {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex-grow: 1;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 12px 20px;
+            background: #fafafa;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header:hover {
+            background: #f5f5f5;
+        }
+
+        .panel-header .arrow {
+            font-size: 12px;
+            margin-right: 8px;
+            transition: transform 0.2s;
+            color: var(--text-light);
+        }
+
+        .panel.collapsed .panel-header .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .panel.collapsed .panel-body {
+            display: none;
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        .search {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: all 200ms;
+            margin-bottom: 12px;
+        }
+
+        .search:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .bean-groups {
+            margin-top: 0;
+        }
+
+        .group {
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--get);
+            border-radius: 6px;
+            background: linear-gradient(to right, rgba(74, 144, 226, 0.02), transparent);
+            margin-bottom: 8px;
+            overflow: visible;
+        }
+
+        .group-toggle {
+            width: 90%;
+            margin: 0 auto;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            padding: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            color: var(--text);
+            transition: all 150ms;
+        }
+
+        .group-main {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .group-type {
+            font-size: 13px;
+            font-weight: 700;
+            word-break: break-all;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .group-meta {
+            margin-top: 2px;
+            color: var(--text-light);
+            font-size: 12px;
+        }
+
+        .group-arrow,
+        .node-arrow {
+            color: var(--accent);
+            font-size: 14px;
+            flex-shrink: 0;
+            transition: transform 200ms;
+        }
+
+        .group-toggle.expanded .group-arrow {
+            transform: rotate(180deg);
+        }
+
+        .group-list {
+            padding: 8px 0 12px;
+            border-top: 1px solid var(--line);
+            background: linear-gradient(to bottom, rgba(74, 144, 226, 0.01), transparent);
+            margin-left: 5%;
+            width: 90%;
+        }
+
+        .tree-node {
+            margin-top: 0;
+        }
+
+        .tree-row {
+            display: flex;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        .tree-indent {
+            width: 12px;
+            flex-shrink: 0;
+            margin-left: 2px;
+            border-left: 1px dashed var(--line);
+        }
+
+        .node-btn {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: transparent;
+            border-radius: 4px;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+            padding: 4px 8px;
+            transition: all 150ms;
+            font-size: 13px;
+        }
+
+        .node-btn:hover {
+            background: var(--hover-bg);
+            padding-left: 12px;
+        }
+
+        .node-btn.active {
+            background: var(--accent-light);
+            border-left: 3px solid var(--accent);
+            padding-left: 5px;
+        }
+
+        .node-line {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .node-name {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.4;
+            flex: 0 0 auto;
+            max-width: none;
+            word-break: break-all;
+            color: var(--text);
+        }
+
+        .meta {
+            color: var(--text-light);
+            font-size: 13px;
+            line-height: 1.4;
+            min-width: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .meta strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .tree-children {
+            margin-left: 0;
+            padding-left: 18px;
+            border-left: 2px solid var(--line);
+            margin-top: 4px;
+        }
+
+        #editor-container {
+            width: 100%;
+            height: 300px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .primary {
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 200ms;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+        }
+
+        .primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        pre.output {
+            margin: 12px 0 0;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+            color: var(--text);
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            font-family: Menlo, Consolas, "SFMono-Regular", monospace;
+        }
+
+        .empty {
+            padding: 12px 14px;
+            border: 1px dashed var(--line);
+            border-radius: 6px;
+            color: var(--text-light);
+            font-size: 13px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.02), rgba(118, 75, 162, 0.02));
+        }
+
+        .error {
+            color: var(--danger);
+        }
+
+        .panel-desc {
+            margin-bottom: 12px;
+            color: var(--text-light);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>Bean Explorer</h1>
+        <div class="subtitle">Inspect Spring beans and execute Java code dynamically in the runtime environment.</div>
+    </div>
+
+    <section id="beanPanel" class="panel collapsed">
+        <div class="panel-header" onclick="togglePanel('beanPanel')">
+            <span class="arrow">▼</span>
+            <h2>Bean Explorer</h2>
+        </div>
+        <div class="panel-body">
+            <div class="panel-desc">Search for beans by name or type. Expand groups to see specific bean instances and their property trees.</div>
+            <input id="searchInput" class="search" placeholder="Search bean name or type...">
+            <div id="beanGroups" class="bean-groups"></div>
+        </div>
+    </section>
+
+    <section id="execPanel" class="panel collapsed">
+        <div class="panel-header" onclick="togglePanel('execPanel')">
+            <span class="arrow">▼</span>
+            <h2>Dynamic Java Executor</h2>
+        </div>
+        <div class="panel-body">
+            <div class="panel-desc">
+                Write code directly using bean names (e.g. <code>dnsServer.mainProcessor</code>).
+                You can also assign values: <code>dnsServer.port = 8080</code>.
+                Use <code>ctx</code> for advanced reflection if needed.
+            </div>
+            <div id="editor-container"></div>
+            <div class="actions">
+                <button id="runBtn" class="primary">Execute (Ctrl+Enter)</button>
+                <div class="meta">Results show return type and value preview.</div>
+            </div>
+            <pre id="executeOutput" class="output">Waiting for execution...</pre>
+        </div>
+    </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<script>
+    const state = {
+        groups: [],
+        selectedBean: null,
+        expandedGroup: null,
+        expandedNodes: {},
+        inspectCache: {},
+        lastResult: null
+    };
+
+    const beanGroupsEl = document.getElementById('beanGroups');
+    const searchInputEl = document.getElementById('searchInput');
+    const executeOutputEl = document.getElementById('executeOutput');
+    let editor;
+
+    function togglePanel(id) {
+        document.getElementById(id).classList.toggle('collapsed');
+        if (id === 'execPanel' && !document.getElementById(id).classList.contains('collapsed')) {
+            if (editor) editor.layout();
+        }
+    }
+
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        monaco.languages.registerCompletionItemProvider('java', {
+            provideCompletionItems: function(model, position) {
+                const textUntilPosition = model.getValueInRange({
+                    startLineNumber: 1,
+                    startColumn: 1,
+                    endLineNumber: position.lineNumber,
+                    endColumn: position.column
+                });
+                
+                const suggestions = [];
+
+                // Basic ctx suggestions
+                if (textUntilPosition.endsWith('ctx.')) {
+                    const ctxMethods = [
+                        { label: 'bean(String name)', insertText: 'bean("${1:beanName}")', detail: 'Get bean by name', kind: monaco.languages.CompletionItemKind.Method },
+                        { label: 'bean(String name, Class<T> type)', insertText: 'bean("${1:beanName}", ${2:Type}.class)', detail: 'Get typed bean', kind: monaco.languages.CompletionItemKind.Method },
+                        { label: 'field(Object target, String fieldName)', insertText: 'field(${1:target}, "${2:fieldName}")', detail: 'Get field value via reflection', kind: monaco.languages.CompletionItemKind.Method },
+                        { label: 'setField(Object target, String fieldName, Object value)', insertText: 'setField(${1:target}, "${2:fieldName}", ${3:value})', detail: 'Set field value via reflection', kind: monaco.languages.CompletionItemKind.Method },
+                        { label: 'invoke(Object target, String methodName, Class<?>[] parameterTypes, Object[] args)', insertText: 'invoke(${1:target}, "${2:methodName}", new Class[]{${3}}, new Object[]{${4}})', detail: 'Invoke method via reflection', kind: monaco.languages.CompletionItemKind.Method },
+                        { label: 'applicationContext()', insertText: 'applicationContext()', detail: 'Get Spring ApplicationContext', kind: monaco.languages.CompletionItemKind.Method }
+                    ];
+                    ctxMethods.forEach(m => {
+                        suggestions.push({
+                            label: m.label,
+                            kind: m.kind,
+                            documentation: m.detail,
+                            insertText: m.insertText,
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            range: null
+                        });
+                    });
+                }
+
+                // Bean name suggestions
+                const words = textUntilPosition.split(/\s+/);
+                const lastWord = words[words.length - 1];
+                if (lastWord && lastWord.length >= 1 && !lastWord.includes('.')) {
+                    state.groups.forEach(group => {
+                        group.beans.forEach(bean => {
+                            if (bean.beanName.toLowerCase().includes(lastWord.toLowerCase())) {
+                                suggestions.push({
+                                    label: bean.beanName,
+                                    kind: monaco.languages.CompletionItemKind.Variable,
+                                    documentation: bean.className,
+                                    insertText: bean.beanName,
+                                    range: null
+                                });
+                            }
+                        });
+                    });
+                }
+
+                return { suggestions: suggestions };
+            }
+        });
+
+        editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: [
+                '// Directly access beans by name',
+                'dnsServer'
+            ].join('\n'),
+            language: 'java',
+            theme: 'vs',
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 13,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            padding: { top: 10, bottom: 10 }
+        });
+
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+            executeCode();
+        });
+    });
+
+    async function request(url, options) {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatPath(path) {
+        if (!path || path.length === 0) {
+            return '(root)';
+        }
+        return path.map(step => {
+            if (step.kind === 'FIELD') return '.' + step.name;
+            if (step.kind === 'INDEX') return '[' + step.index + ']';
+            if (step.kind === 'MAP_KEY') return '{' + step.mapKey + '}';
+            return '?';
+        }).join('');
+    }
+
+    function cacheKey(beanName, path) {
+        if (!beanName) return 'RESULT::' + JSON.stringify(path || []);
+        return beanName + '::' + JSON.stringify(path || []);
+    }
+
+    function ensureExpandedGroup(filteredGroups) {
+        if (filteredGroups.length === 0) {
+            state.expandedGroup = null;
+            return;
+        }
+        if (state.expandedGroup && !filteredGroups.some(group => group.typeName === state.expandedGroup)) {
+            state.expandedGroup = null;
+        }
+    }
+
+    function isExpanded(beanName, path) {
+        return !!state.expandedNodes[cacheKey(beanName, path)];
+    }
+
+    async function fetchInspect(beanName, path) {
+        const key = cacheKey(beanName, path);
+        if (state.inspectCache[key]) {
+            return state.inspectCache[key];
+        }
+        
+        let url = '/bean-explorer/api/inspect';
+        let body = { beanName, path };
+        
+        if (!beanName && state.lastResult) {
+            // This is a dynamic execution result, not a spring bean
+            url = '/bean-explorer/api/inspect-result';
+            body = { path };
+        }
+
+        const response = await request(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        state.inspectCache[key] = response;
+        return response;
+    }
+
+    function renderGroups() {
+        const keyword = searchInputEl.value.trim().toLowerCase();
+        const filteredGroups = state.groups.filter(group => {
+            if (!keyword) {
+                return true;
+            }
+            if (group.typeName.toLowerCase().includes(keyword)) {
+                return true;
+            }
+            return group.beans.some(bean => bean.beanName.toLowerCase().includes(keyword));
+        });
+
+        ensureExpandedGroup(filteredGroups);
+        beanGroupsEl.innerHTML = '';
+
+        if (filteredGroups.length === 0) {
+            beanGroupsEl.innerHTML = '<div class="empty">No matching beans found</div>';
+            return;
+        }
+
+        filteredGroups.forEach(group => {
+            const wrap = document.createElement('div');
+            wrap.className = 'group';
+
+            const toggle = document.createElement('button');
+            toggle.className = 'group-toggle' + (state.expandedGroup === group.typeName ? ' expanded' : '');
+            toggle.innerHTML =
+                '<div class="group-main">' +
+                '<div class="group-type">' + escapeHtml(group.typeName) + '</div>' +
+                '<div class="group-meta">' + group.count + ' Beans</div>' +
+                '</div>' +
+                '<div class="group-arrow">' + (state.expandedGroup === group.typeName ? '▾' : '▸') + '</div>';
+            toggle.onclick = () => {
+                state.expandedGroup = state.expandedGroup === group.typeName ? null : group.typeName;
+                renderGroups();
+            };
+            wrap.appendChild(toggle);
+
+            if (state.expandedGroup === group.typeName) {
+                const list = document.createElement('div');
+                list.className = 'group-list';
+                group.beans.forEach(bean => {
+                    list.appendChild(buildTreeNode({
+                        beanName: bean.beanName,
+                        label: bean.beanName,
+                        className: bean.className,
+                        valuePreview: bean.className,
+                        nodeKind: 'bean',
+                        expandable: true,
+                        path: []
+                    }, 0, true));
+                });
+                wrap.appendChild(list);
+            }
+
+            beanGroupsEl.appendChild(wrap);
+        });
+    }
+
+    function buildTreeNode(node, level, isBeanRoot) {
+        const wrap = document.createElement('div');
+        wrap.className = 'tree-node';
+
+        const row = document.createElement('div');
+        row.className = 'tree-row';
+
+        for (let i = 0; i < level; i++) {
+            const indent = document.createElement('div');
+            indent.className = 'tree-indent';
+            row.appendChild(indent);
+        }
+
+        const expanded = isExpanded(node.beanName, node.path);
+        const btn = document.createElement('button');
+        btn.className = 'node-btn' + (expanded ? ' active' : '') + (isBeanRoot && state.selectedBean === node.beanName ? ' active' : '');
+
+        let metaText;
+        if (isBeanRoot) {
+            metaText = '<strong>' + escapeHtml(node.beanName) + '</strong> ' + escapeHtml(node.className || 'Object');
+        } else {
+            metaText = '<strong>' + escapeHtml(node.label) + '</strong> ' + escapeHtml(node.valuePreview || 'null');
+        }
+
+        btn.innerHTML =
+            '<div class="node-line">' +
+            '<div class="node-arrow">' + (node.expandable ? (expanded ? '▾' : '▸') : '·') + '</div>' +
+            '<div class="node-name">' + (isBeanRoot ? escapeHtml(node.label || '-') : '') + '</div>' +
+            '<div class="meta">' + metaText + '</div>' +
+            '</div>' +
+            '';
+        btn.onclick = () => toggleNode(node, isBeanRoot);
+        row.appendChild(btn);
+        wrap.appendChild(row);
+
+        if (expanded) {
+            const response = state.inspectCache[cacheKey(node.beanName, node.path)];
+            const childrenWrap = document.createElement('div');
+            childrenWrap.className = 'tree-children';
+            if (!response) {
+                childrenWrap.innerHTML = '<div class="empty">Loading...</div>';
+            } else if (!response.children || response.children.length === 0) {
+                childrenWrap.innerHTML = '<div class="empty">No properties found</div>';
+            } else {
+                response.children.forEach(child => {
+                    childrenWrap.appendChild(buildTreeNode({
+                        beanName: node.beanName,
+                        label: child.label,
+                        className: child.className,
+                        valuePreview: child.valuePreview,
+                        nodeKind: child.nodeKind,
+                        expandable: child.expandable,
+                        path: child.path || []
+                    }, level + 1, false));
+                });
+            }
+            wrap.appendChild(childrenWrap);
+        }
+
+        return wrap;
+    }
+
+    async function toggleNode(node, isBeanRoot) {
+        if (isBeanRoot) {
+            state.selectedBean = node.beanName;
+        }
+        if (!node.expandable) {
+            if (node.beanName === '') refreshExecuteResult();
+            else renderGroups();
+            return;
+        }
+
+        const key = cacheKey(node.beanName, node.path);
+        if (state.expandedNodes[key]) {
+            delete state.expandedNodes[key];
+            if (node.beanName === '') refreshExecuteResult();
+            else renderGroups();
+            return;
+        }
+
+        state.expandedNodes[key] = true;
+        if (node.beanName === '') refreshExecuteResult();
+        else renderGroups();
+        
+        await fetchInspect(node.beanName, node.path);
+        
+        if (node.beanName === '') refreshExecuteResult();
+        else renderGroups();
+    }
+
+    async function loadBeans() {
+        state.groups = await request('/bean-explorer/api/beans');
+        renderGroups();
+    }
+
+    async function executeCode() {
+        if (!editor) return;
+        executeOutputEl.innerHTML = '<div class="empty">Executing...</div>';
+        executeOutputEl.classList.remove('error');
+        state.lastResult = null;
+        try {
+            const response = await request('/bean-explorer/api/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ javaCode: editor.getValue() })
+            });
+            if (!response.success) {
+                executeOutputEl.classList.add('error');
+                executeOutputEl.textContent = response.error || 'Execution failed';
+                return;
+            }
+            state.lastResult = response.resultNode;
+            executeOutputEl.innerHTML = '';
+            executeOutputEl.appendChild(buildTreeNode({
+                beanName: '', // Empty beanName signifies it's the dynamic result
+                label: 'Result',
+                className: response.resultType,
+                valuePreview: response.result,
+                nodeKind: response.resultNode.nodeKind,
+                expandable: response.resultNode.expandable,
+                path: []
+            }, 0, false));
+        } catch (e) {
+            executeOutputEl.classList.add('error');
+            executeOutputEl.textContent = e.message;
+        }
+    }
+
+    function refreshExecuteResult() {
+        if (!state.lastResult) return;
+        const oldScroll = executeOutputEl.scrollTop;
+        executeOutputEl.innerHTML = '';
+        executeOutputEl.appendChild(buildTreeNode({
+            beanName: '',
+            label: 'Result',
+            className: state.lastResult.className,
+            valuePreview: state.lastResult.valuePreview,
+            nodeKind: state.lastResult.nodeKind,
+            expandable: state.lastResult.expandable,
+            path: []
+        }, 0, false));
+        executeOutputEl.scrollTop = oldScroll;
+    }
+
+    document.getElementById('runBtn').onclick = executeCode;
+    searchInputEl.oninput = renderGroups;
+
+    loadBeans().catch(err => {
+        beanGroupsEl.innerHTML = '<div class="empty error">' + escapeHtml(err.message) + '</div>';
+    });
+</script>
+</body>
+</html>
