@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -217,7 +217,7 @@
 
         .tree-row {
             display: flex;
-            align-items: stretch;
+            align-items: center;
             gap: 4px;
         }
 
@@ -298,7 +298,8 @@
             height: 300px;
             border: 1px solid var(--line);
             border-radius: 6px;
-            overflow: hidden;
+            overflow: visible;
+            position: relative;
         }
 
         .actions {
@@ -361,6 +362,46 @@
             font-size: 13px;
             line-height: 1.5;
         }
+
+        .copy-path-btn {
+            flex-shrink: 0;
+            border: 1px solid var(--line);
+            background: var(--card-bg);
+            color: var(--text-light);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-right: 4px;
+            line-height: 1.4;
+        }
+
+        .copy-path-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        #copyToast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(40, 44, 52, 0.92);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.25s ease;
+        }
+
+        #copyToast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -376,7 +417,7 @@
             <h2>Bean Explorer</h2>
         </div>
         <div class="panel-body">
-            <div class="panel-desc">Search for beans by name or type. Expand groups to see specific bean instances and their property trees.</div>
+            <div class="panel-desc">Search beans by name or type, then expand nodes to inspect the property tree. Use <strong>Copy Path</strong> beside a node to get a <code>bean.property</code> expression for the executor below.</div>
             <input id="searchInput" class="search" placeholder="Search bean name or type...">
             <div id="beanGroups" class="bean-groups"></div>
         </div>
@@ -389,9 +430,9 @@
         </div>
         <div class="panel-body">
             <div class="panel-desc">
-                Write code directly using bean names (e.g. <code>dnsServer.mainProcessor</code>).
-                You can also assign values: <code>dnsServer.port = 8080</code>.
-                Use <code>ctx</code> for advanced reflection if needed.
+                Use chained access like <strong>bean.property</strong>; for multi-line input, join statements with semicolons, and <strong>the last expression becomes the result</strong> (lines with only <code>//</code> are ignored).
+                After typing <strong>.</strong>, completion is sourced from the same tree on the left through <code>/inspect</code> child nodes, with reflective methods like <code>List.add</code> appended.
+                Assignment examples: <code>bean.prop = value</code> or <code>bean.list[0] = value</code>. <code>ctx</code> provides reflection helpers.
             </div>
             <div id="editor-container"></div>
             <div class="actions">
@@ -402,6 +443,7 @@
         </div>
     </section>
 </div>
+<div id="copyToast" role="status" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
 <script>
@@ -426,72 +468,116 @@
         }
     }
 
+    function completionRange(model, position, prefixLen) {
+        const start = Math.max(1, position.column - prefixLen);
+        return new monaco.Range(position.lineNumber, start, position.lineNumber, position.column);
+    }
+
+    function parseCompletionContext(model, position) {
+        const line = model.getLineContent(position.lineNumber);
+        const before = line.substring(0, position.column - 1);
+        const dot = before.lastIndexOf('.');
+        if (dot >= 0) {
+            const receiver = before.substring(0, dot).trim();
+            const afterDot = before.substring(dot + 1);
+            const pm = afterDot.match(/^([\w$]*)/);
+            const prefix = pm ? pm[1] : '';
+            if (receiver.length > 0) {
+                return { mode: 'member', receiver: receiver, prefix: prefix };
+            }
+        }
+        const wm = before.match(/([\w$]*)$/);
+        const word = wm ? wm[1] : '';
+        return { mode: 'bean', prefix: word };
+    }
+
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
     require(['vs/editor/editor.main'], function() {
         monaco.languages.registerCompletionItemProvider('java', {
+            triggerCharacters: ['.'],
             provideCompletionItems: function(model, position) {
-                const textUntilPosition = model.getValueInRange({
-                    startLineNumber: 1,
-                    startColumn: 1,
-                    endLineNumber: position.lineNumber,
-                    endColumn: position.column
-                });
-                
+                const ctx = parseCompletionContext(model, position);
+                if (ctx.mode === 'member') {
+                    const range = completionRange(model, position, ctx.prefix.length);
+                    return request('/bean-explorer/api/members', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ expression: ctx.receiver })
+                    }).then(function(data) {
+                        let hints = data.hints || [];
+                        if (ctx.prefix) {
+                            const p = ctx.prefix.toLowerCase();
+                            hints = hints.filter(function(h) {
+                                const n = (h.name || '').toLowerCase();
+                                const ins = (h.insertText || '').toLowerCase();
+                                return n.indexOf(p) === 0 || ins.indexOf(p) === 0;
+                            });
+                        }
+                        const suggestions = hints.map(function(h) {
+                            const isMethod = h.kind === 'METHOD';
+                            const isProp = h.kind === 'PROPERTY' || h.kind === 'FIELD';
+                            const insert = (!isMethod && h.insertText) ? h.insertText : (isMethod ? h.name + '($1)' : h.name);
+                            let doc = h.signature || h.typeName || '';
+                            if (h.valuePreview != null && h.valuePreview !== '') {
+                                doc += (doc ? '\n' : '') + 'Preview: ' + h.valuePreview;
+                            }
+                            if (h.expandable) {
+                                doc += (doc ? '\n' : '') + 'Matches the bean tree on the left and can be expanded further';
+                            }
+                            if (data.valueTypeName) {
+                                doc += (doc ? '\n' : '') + 'Current type: ' + data.valueTypeName;
+                            }
+                            if (data.error) {
+                                doc += (doc ? '\n' : '') + '(reflection fallback: ' + data.error + ')';
+                            }
+                            return {
+                                label: h.name + (isMethod ? '(…)' : ''),
+                                kind: isMethod ? monaco.languages.CompletionItemKind.Method : monaco.languages.CompletionItemKind.Field,
+                                detail: h.typeName || h.signature,
+                                documentation: doc,
+                                insertText: insert,
+                                insertTextRules: isMethod ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                                sortText: (isMethod ? '2' : isProp ? '0' : '1') + String(h.name),
+                                range: range
+                            };
+                        });
+                        return { suggestions: suggestions };
+                    }).catch(function() {
+                        return { suggestions: [] };
+                    });
+                }
+
+                const prefix = ctx.prefix || '';
+                const range = completionRange(model, position, prefix.length);
                 const suggestions = [];
 
-                // Basic ctx suggestions
-                if (textUntilPosition.endsWith('ctx.')) {
-                    const ctxMethods = [
-                        { label: 'bean(String name)', insertText: 'bean("${1:beanName}")', detail: 'Get bean by name', kind: monaco.languages.CompletionItemKind.Method },
-                        { label: 'bean(String name, Class<T> type)', insertText: 'bean("${1:beanName}", ${2:Type}.class)', detail: 'Get typed bean', kind: monaco.languages.CompletionItemKind.Method },
-                        { label: 'field(Object target, String fieldName)', insertText: 'field(${1:target}, "${2:fieldName}")', detail: 'Get field value via reflection', kind: monaco.languages.CompletionItemKind.Method },
-                        { label: 'setField(Object target, String fieldName, Object value)', insertText: 'setField(${1:target}, "${2:fieldName}", ${3:value})', detail: 'Set field value via reflection', kind: monaco.languages.CompletionItemKind.Method },
-                        { label: 'invoke(Object target, String methodName, Class<?>[] parameterTypes, Object[] args)', insertText: 'invoke(${1:target}, "${2:methodName}", new Class[]{${3}}, new Object[]{${4}})', detail: 'Invoke method via reflection', kind: monaco.languages.CompletionItemKind.Method },
-                        { label: 'applicationContext()', insertText: 'applicationContext()', detail: 'Get Spring ApplicationContext', kind: monaco.languages.CompletionItemKind.Method }
-                    ];
-                    ctxMethods.forEach(m => {
-                        suggestions.push({
-                            label: m.label,
-                            kind: m.kind,
-                            documentation: m.detail,
-                            insertText: m.insertText,
-                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                            range: null
-                        });
+                state.groups.forEach(function(group) {
+                    group.beans.forEach(function(bean) {
+                        if (!prefix || bean.beanName.toLowerCase().indexOf(prefix.toLowerCase()) === 0) {
+                            suggestions.push({
+                                label: bean.beanName,
+                                kind: monaco.languages.CompletionItemKind.Variable,
+                                documentation: bean.className,
+                                detail: bean.className,
+                                insertText: bean.beanName,
+                                range: range
+                            });
+                        }
                     });
-                }
-
-                // Bean name suggestions
-                const words = textUntilPosition.split(/\s+/);
-                const lastWord = words[words.length - 1];
-                if (lastWord && lastWord.length >= 1 && !lastWord.includes('.')) {
-                    state.groups.forEach(group => {
-                        group.beans.forEach(bean => {
-                            if (bean.beanName.toLowerCase().includes(lastWord.toLowerCase())) {
-                                suggestions.push({
-                                    label: bean.beanName,
-                                    kind: monaco.languages.CompletionItemKind.Variable,
-                                    documentation: bean.className,
-                                    insertText: bean.beanName,
-                                    range: null
-                                });
-                            }
-                        });
-                    });
-                }
-
+                });
                 return { suggestions: suggestions };
             }
         });
 
         editor = monaco.editor.create(document.getElementById('editor-container'), {
             value: [
-                '// Directly access beans by name',
+                '// bean.property; type . to trigger server-side field/method completion; List example: myBean.myList.add(1)',
                 'dnsServer'
             ].join('\n'),
             language: 'java',
             theme: 'vs',
             automaticLayout: true,
+            fixedOverflowWidgets: true,
             minimap: { enabled: false },
             fontSize: 13,
             lineNumbers: 'on',
@@ -533,9 +619,69 @@
         }).join('');
     }
 
+    /** Matches executor syntax: bean.field, list[i], map["key"] */
+    function formatExprPath(beanName, path) {
+        if (!beanName) return '';
+        let s = beanName;
+        for (const step of path || []) {
+            if (step.kind === 'FIELD') s += '.' + step.name;
+            else if (step.kind === 'INDEX') s += '[' + step.index + ']';
+            else if (step.kind === 'MAP_KEY') s += '[' + JSON.stringify(String(step.mapKey)) + ']';
+        }
+        return s;
+    }
+
+    let copyToastTimer;
+    function showCopyToast(msg) {
+        const el = document.getElementById('copyToast');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(copyToastTimer);
+        copyToastTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+    }
+
+    function copyToClipboard(text) {
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                showCopyToast('Copied: ' + text);
+            }).catch(function() {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            showCopyToast('Copied: ' + text);
+        } catch (e) {
+            showCopyToast('Copy failed');
+        }
+        document.body.removeChild(ta);
+    }
+
     function cacheKey(beanName, path) {
         if (!beanName) return 'RESULT::' + JSON.stringify(path || []);
         return beanName + '::' + JSON.stringify(path || []);
+    }
+
+    function clearResultTreeState() {
+        Object.keys(state.inspectCache).forEach(function(k) {
+            if (k.indexOf('RESULT::') === 0) delete state.inspectCache[k];
+        });
+        Object.keys(state.expandedNodes).forEach(function(k) {
+            if (k.indexOf('RESULT::') === 0) delete state.expandedNodes[k];
+        });
     }
 
     function ensureExpandedGroup(filteredGroups) {
@@ -562,7 +708,7 @@
         let body = { beanName, path };
         
         if (!beanName && state.lastResult) {
-            // This is a dynamic execution result, not a spring bean
+            // This is a dynamic execution result, not a Spring bean
             url = '/bean-explorer/api/inspect-result';
             body = { path };
         }
@@ -648,6 +794,19 @@
             row.appendChild(indent);
         }
 
+        if (node.beanName) {
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'copy-path-btn';
+            copyBtn.textContent = 'Copy Path';
+            copyBtn.title = 'Copy a bean.property expression for the executor below';
+            copyBtn.onclick = function(e) {
+                e.stopPropagation();
+                copyToClipboard(formatExprPath(node.beanName, node.path));
+            };
+            row.appendChild(copyBtn);
+        }
+
         const expanded = isExpanded(node.beanName, node.path);
         const btn = document.createElement('button');
         btn.className = 'node-btn' + (expanded ? ' active' : '') + (isBeanRoot && state.selectedBean === node.beanName ? ' active' : '');
@@ -676,6 +835,8 @@
             childrenWrap.className = 'tree-children';
             if (!response) {
                 childrenWrap.innerHTML = '<div class="empty">Loading...</div>';
+            } else             if (response.error) {
+                childrenWrap.innerHTML = '<div class="empty error">' + escapeHtml(response.error) + '</div>';
             } else if (!response.children || response.children.length === 0) {
                 childrenWrap.innerHTML = '<div class="empty">No properties found</div>';
             } else {
@@ -735,6 +896,7 @@
         executeOutputEl.innerHTML = '<div class="empty">Executing...</div>';
         executeOutputEl.classList.remove('error');
         state.lastResult = null;
+        clearResultTreeState();
         try {
             const response = await request('/bean-explorer/api/execute', {
                 method: 'POST',
@@ -746,10 +908,18 @@
                 executeOutputEl.textContent = response.error || 'Execution failed';
                 return;
             }
-            state.lastResult = response.resultNode;
+            clearResultTreeState();
+            state.lastResult = response.resultNode || null;
             executeOutputEl.innerHTML = '';
+            if (!response.resultNode) {
+                const pre = document.createElement('pre');
+                pre.className = 'output';
+                pre.textContent = (response.result != null && response.result !== '') ? response.result : '(Execution succeeded but resultNode is missing)';
+                executeOutputEl.appendChild(pre);
+                return;
+            }
             executeOutputEl.appendChild(buildTreeNode({
-                beanName: '', // Empty beanName signifies it's the dynamic result
+                beanName: '',
                 label: 'Result',
                 className: response.resultType,
                 valuePreview: response.result,

@@ -92,14 +92,35 @@ public class BeanExplorerService {
     }
 
     public Object navigate(Object root, List<PathStep> path) {
-        Object current = root;
+        Object current = unwrapProxy(root);
         if (CollectionUtils.isEmpty(path)) {
-            return unwrapProxy(current);
+            return current;
         }
         for (PathStep step : path) {
             current = access(current, step);
         }
         return unwrapProxy(current);
+    }
+
+    /**
+     * 与 {@link #inspect(BeanInspectRequest)} 相同子树逻辑，但从任意根对象开始（用于动态执行结果展开）。
+     */
+    public BeanInspectResponse inspectObjectAtPath(Object root, List<PathStep> path) {
+        List<PathStep> safePath = path == null ? Collections.<PathStep>emptyList() : path;
+        Object unwrappedRoot = navigate(root, Collections.<PathStep>emptyList());
+        Object target = navigate(root, safePath);
+        BeanInspectResponse response = new BeanInspectResponse();
+        response.setRootClassName(classNameOf(unwrappedRoot));
+        response.setCurrentClassName(classNameOf(target));
+        response.setValuePreview(renderValue(target));
+        response.setNodeKind(detectNodeKind(target));
+        response.setPath(copyPath(safePath));
+        response.setChildren(buildChildren(safePath, target));
+        return response;
+    }
+
+    public Object unwrapValue(Object candidate) {
+        return unwrapProxy(candidate);
     }
 
     private Object access(Object current, PathStep step) {
@@ -139,6 +160,19 @@ public class BeanExplorerService {
                 }
                 return unwrapProxy(list.get(index));
             }
+            if (current instanceof Collection) {
+                Collection<?> coll = (Collection<?>) current;
+                if (index < 0 || index >= coll.size()) {
+                    throw new IllegalArgumentException("索引越界: " + index);
+                }
+                int j = 0;
+                for (Object o : coll) {
+                    if (j++ == index) {
+                        return unwrapProxy(o);
+                    }
+                }
+                throw new IllegalArgumentException("索引越界: " + index);
+            }
             throw new IllegalArgumentException("当前节点不支持索引访问");
         }
         if ("MAP_KEY".equalsIgnoreCase(step.getKind())) {
@@ -163,7 +197,24 @@ public class BeanExplorerService {
         if (current.getClass().isArray()) {
             return buildArrayChildren(basePath, current);
         }
+        if (current instanceof Collection) {
+            return buildGenericCollectionChildren(basePath, (Collection<?>) current);
+        }
         return buildFieldChildren(basePath, current);
+    }
+
+    private List<BeanPropertyNode> buildGenericCollectionChildren(List<PathStep> basePath, Collection<?> coll) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        int i = 0;
+        for (Object value : coll) {
+            if (i >= MAX_CHILDREN) {
+                break;
+            }
+            Object v = unwrapProxy(value);
+            children.add(buildValueNode("[" + i + "]", v, appendStep(basePath, indexStep(i))));
+            i++;
+        }
+        return children;
     }
 
     private List<BeanPropertyNode> buildFieldChildren(List<PathStep> basePath, Object current) {
@@ -524,6 +575,79 @@ public class BeanExplorerService {
         step.setKind("MAP_KEY");
         step.setMapKey(key);
         return step;
+    }
+
+    /**
+     * Field + instance method hints for evaluate-expression style completion (IDE-like).
+     */
+    public List<MemberHint> buildMemberHints(Object raw) {
+        Object value = unwrapProxy(raw);
+        List<MemberHint> out = new ArrayList<MemberHint>();
+        if (value == null) {
+            return out;
+        }
+        if (value instanceof Class) {
+            return out;
+        }
+        for (Field field : collectFields(value.getClass())) {
+            MemberHint h = new MemberHint();
+            h.setName(field.getName());
+            h.setKind("FIELD");
+            h.setTypeName(field.getType().getSimpleName());
+            h.setSignature(field.getType().getName() + " " + field.getName());
+            out.add(h);
+        }
+        Set<String> seenMethod = new HashSet<String>();
+        for (Method method : value.getClass().getMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
+                continue;
+            }
+            if (method.getDeclaringClass() == Object.class) {
+                continue;
+            }
+            if (method.isSynthetic()) {
+                continue;
+            }
+            StringBuilder sigKey = new StringBuilder();
+            sigKey.append(method.getName()).append('(');
+            Class<?>[] pt = method.getParameterTypes();
+            for (int i = 0; i < pt.length; i++) {
+                if (i > 0) {
+                    sigKey.append(',');
+                }
+                sigKey.append(pt[i].getName());
+            }
+            sigKey.append(')');
+            if (!seenMethod.add(sigKey.toString())) {
+                continue;
+            }
+            MemberHint h = new MemberHint();
+            h.setName(method.getName());
+            h.setKind("METHOD");
+            h.setTypeName(method.getReturnType().getSimpleName());
+            StringBuilder sb = new StringBuilder();
+            sb.append(method.getReturnType().getSimpleName()).append(' ').append(method.getName()).append('(');
+            for (int i = 0; i < pt.length; i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(pt[i].getSimpleName());
+            }
+            sb.append(')');
+            h.setSignature(sb.toString());
+            out.add(h);
+        }
+        Collections.sort(out, new Comparator<MemberHint>() {
+            @Override
+            public int compare(MemberHint a, MemberHint b) {
+                int c = a.getName().compareTo(b.getName());
+                if (c != 0) {
+                    return c;
+                }
+                return a.getKind().compareTo(b.getKind());
+            }
+        });
+        return out;
     }
 
 }

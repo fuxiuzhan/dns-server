@@ -18,6 +18,9 @@ public class BeanInspectResponse {
 
     private List<BeanPropertyNode> children;
 
+    /** 非空时表示 inspect 失败原因（如路径非法） */
+    private String error;
+
     public String getBeanName() {
         return beanName;
     }
@@ -72,5 +75,13 @@ public class BeanInspectResponse {
 
     public void setChildren(List<BeanPropertyNode> children) {
         this.children = children;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
     }
 }

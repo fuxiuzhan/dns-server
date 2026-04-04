@@ -1,5 +1,7 @@
 package com.fxz.console.pojo.beanexplorer;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class PathStep {
 
     private String kind;
@@ -30,8 +32,20 @@ public class PathStep {
         return index;
     }
 
-    public void setIndex(Integer index) {
-        this.index = index;
+    /** 兼容 JSON 中 index 为浮点数等情况；Java 侧 setIndex(3) 会装箱为 Integer 传入 */
+    @JsonProperty("index")
+    public void setIndex(Object v) {
+        if (v == null) {
+            this.index = null;
+        } else if (v instanceof Number) {
+            this.index = ((Number) v).intValue();
+        } else {
+            try {
+                this.index = Integer.parseInt(String.valueOf(v));
+            } catch (NumberFormatException e) {
+                this.index = null;
+            }
+        }
     }
 
     public String getMapKey() {

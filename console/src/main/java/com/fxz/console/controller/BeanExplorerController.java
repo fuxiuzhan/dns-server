@@ -5,6 +5,8 @@ import com.fxz.console.pojo.beanexplorer.BeanInspectResponse;
 import com.fxz.console.pojo.beanexplorer.BeanTypeGroup;
 import com.fxz.console.pojo.beanexplorer.ExecuteCodeRequest;
 import com.fxz.console.pojo.beanexplorer.ExecuteCodeResponse;
+import com.fxz.console.pojo.beanexplorer.MembersRequest;
+import com.fxz.console.pojo.beanexplorer.MembersResponse;
 import com.fxz.console.service.BeanExplorerService;
 import com.fxz.console.service.DynamicJavaExecutor;
 import org.springframework.http.MediaType;
@@ -38,6 +40,11 @@ public class BeanExplorerController {
     @PostMapping(value = "/execute", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ExecuteCodeResponse execute(@RequestBody ExecuteCodeRequest request) {
         return dynamicJavaExecutor.execute(request == null ? null : request.getJavaCode());
+    }
+
+    @PostMapping(value = "/members", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public MembersResponse members(@RequestBody MembersRequest request) {
+        return dynamicJavaExecutor.members(request == null ? null : request.getExpression());
     }
 
     @PostMapping(value = "/inspect-result", consumes = MediaType.APPLICATION_JSON_VALUE)
