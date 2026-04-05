@@ -465,6 +465,13 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
 <script>
+    window.BEAN_EXPLORER_CONFIG = {
+        apiBase: "__BEAN_EXPLORER_API_BASE__",
+        authEnabled: "__BEAN_EXPLORER_AUTH_ENABLED__" === "true",
+        authHeader: "__BEAN_EXPLORER_AUTH_HEADER__",
+        authQuery: "__BEAN_EXPLORER_AUTH_QUERY__"
+    };
+
     const state = {
         groups: [],
         selectedBean: null,
@@ -479,6 +486,66 @@
     const searchInputEl = document.getElementById('searchInput');
     const executeOutputEl = document.getElementById('executeOutput');
     let editor;
+
+    function getTokenFromLocation() {
+        const params = new URLSearchParams(window.location.search || '');
+        const token = params.get(window.BEAN_EXPLORER_CONFIG.authQuery);
+        if (token) {
+            try {
+                window.localStorage.setItem('beanExplorerToken', token);
+            } catch (e) {
+            }
+            return token;
+        }
+        try {
+            return window.localStorage.getItem('beanExplorerToken') || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function saveToken(token) {
+        try {
+            if (token) {
+                window.localStorage.setItem('beanExplorerToken', token);
+            } else {
+                window.localStorage.removeItem('beanExplorerToken');
+            }
+        } catch (e) {
+        }
+    }
+
+    async function ensureAuthorized(forcePrompt) {
+        if (!window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            return true;
+        }
+        let token = forcePrompt ? '' : getTokenFromLocation();
+        while (!token) {
+            token = window.prompt('Bean Explorer token required. Please enter the access token:', '');
+            if (token == null) {
+                throw new Error('Token is required');
+            }
+            token = token.trim();
+        }
+        saveToken(token);
+        return true;
+    }
+
+    function buildApiUrl(path) {
+        return window.BEAN_EXPLORER_CONFIG.apiBase + path;
+    }
+
+    function withAuth(options) {
+        const requestOptions = options || {};
+        requestOptions.headers = requestOptions.headers || {};
+        if (window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            const token = getTokenFromLocation();
+            if (token) {
+                requestOptions.headers[window.BEAN_EXPLORER_CONFIG.authHeader] = token;
+            }
+        }
+        return requestOptions;
+    }
 
     function togglePanel(id) {
         document.getElementById(id).classList.toggle('collapsed');
@@ -518,11 +585,11 @@
                 const ctx = parseCompletionContext(model, position);
                 if (ctx.mode === 'member') {
                     const range = completionRange(model, position, ctx.prefix.length);
-                    return request('/bean-explorer/api/members', {
+                    return request(buildApiUrl('/members'), withAuth({
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ expression: ctx.receiver })
-                    }).then(function(data) {
+                    })).then(function(data) {
                         let hints = data.hints || [];
                         if (ctx.prefix) {
                             const p = ctx.prefix.toLowerCase();
@@ -609,8 +676,13 @@
         });
     });
 
-    async function request(url, options) {
+    async function request(url, options, retryOnUnauthorized) {
         const response = await fetch(url, options);
+        if (response.status === 401 && retryOnUnauthorized !== false && window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            saveToken('');
+            await ensureAuthorized(true);
+            return request(url, withAuth(options || {}), false);
+        }
         if (!response.ok) {
             throw new Error('HTTP ' + response.status);
         }
@@ -727,20 +799,22 @@
             return state.inspectCache[key];
         }
         
-        let url = '/bean-explorer/api/inspect';
+        let url;
         let body = { beanName, path };
         
         if (!beanName && state.lastResult) {
             // This is a dynamic execution result, not a Spring bean
-            url = '/bean-explorer/api/inspect-result';
+            url = buildApiUrl('/inspect-result');
             body = { path };
+        } else {
+            url = buildApiUrl('/inspect');
         }
 
-        const response = await request(url, {
+        const response = await request(url, withAuth({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
-        });
+        }));
         state.inspectCache[key] = response;
         return response;
     }
@@ -962,7 +1036,8 @@
     }
 
     async function loadBeans() {
-        state.groups = await request('/bean-explorer/api/beans');
+        await ensureAuthorized(false);
+        state.groups = await request(buildApiUrl('/beans'), withAuth());
         renderGroups();
     }
 
@@ -996,7 +1071,7 @@
             return;
         }
         try {
-            const response = await request('/bean-explorer/api/update-property', {
+            const response = await request(buildApiUrl('/update-property'), withAuth({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1004,7 +1079,7 @@
                     path: node.path || [],
                     value: value
                 })
-            });
+            }));
             if (!response.success) {
                 showCopyToast(response.error || 'Update failed');
                 state.editingKey = null;
@@ -1029,11 +1104,11 @@
         state.lastResult = null;
         clearResultTreeState();
         try {
-            const response = await request('/bean-explorer/api/execute', {
+            const response = await request(buildApiUrl('/execute'), withAuth({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ javaCode: editor.getValue() })
-            });
+            }));
             if (!response.success) {
                 executeOutputEl.classList.add('error');
                 executeOutputEl.textContent = response.error || 'Execution failed';

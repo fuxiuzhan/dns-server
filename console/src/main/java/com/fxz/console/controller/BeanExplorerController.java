@@ -11,13 +11,15 @@ import com.fxz.console.pojo.beanexplorer.UpdateBeanPropertyRequest;
 import com.fxz.console.pojo.beanexplorer.UpdateBeanPropertyResponse;
 import com.fxz.console.service.BeanExplorerService;
 import com.fxz.console.service.DynamicJavaExecutor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/bean-explorer/api")
+@ConditionalOnProperty(prefix = "bean.explorer", name = "enabled", havingValue = "true", matchIfMissing = true)
+@RequestMapping("${bean.explorer.api-path:/bean-explorer/api}")
 public class BeanExplorerController {
 
     private final BeanExplorerService beanExplorerService;
