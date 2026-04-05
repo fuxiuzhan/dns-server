@@ -7,6 +7,8 @@ import com.fxz.console.pojo.beanexplorer.ExecuteCodeRequest;
 import com.fxz.console.pojo.beanexplorer.ExecuteCodeResponse;
 import com.fxz.console.pojo.beanexplorer.MembersRequest;
 import com.fxz.console.pojo.beanexplorer.MembersResponse;
+import com.fxz.console.pojo.beanexplorer.UpdateBeanPropertyRequest;
+import com.fxz.console.pojo.beanexplorer.UpdateBeanPropertyResponse;
 import com.fxz.console.service.BeanExplorerService;
 import com.fxz.console.service.DynamicJavaExecutor;
 import org.springframework.http.MediaType;
@@ -50,5 +52,10 @@ public class BeanExplorerController {
     @PostMapping(value = "/inspect-result", consumes = MediaType.APPLICATION_JSON_VALUE)
     public BeanInspectResponse inspectResult(@RequestBody BeanInspectRequest request) {
         return dynamicJavaExecutor.inspectResult(request == null ? null : request.getPath());
+    }
+
+    @PostMapping(value = "/update-property", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public UpdateBeanPropertyResponse updateProperty(@RequestBody UpdateBeanPropertyRequest request) {
+        return beanExplorerService.updateProperty(request);
     }
 }

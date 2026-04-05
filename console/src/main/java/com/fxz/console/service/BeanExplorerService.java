@@ -123,6 +123,47 @@ public class BeanExplorerService {
         return unwrapProxy(candidate);
     }
 
+    public UpdateBeanPropertyResponse updateProperty(UpdateBeanPropertyRequest request) {
+        UpdateBeanPropertyResponse response = new UpdateBeanPropertyResponse();
+        try {
+            if (request == null || !StringUtils.hasText(request.getBeanName())) {
+                throw new IllegalArgumentException("beanName is required");
+            }
+            List<PathStep> path = request.getPath() == null ? Collections.<PathStep>emptyList() : request.getPath();
+            if (path.isEmpty()) {
+                throw new IllegalArgumentException("Only field properties can be edited");
+            }
+            PathStep leaf = path.get(path.size() - 1);
+            if (leaf == null || !"FIELD".equalsIgnoreCase(leaf.getKind()) || !StringUtils.hasText(leaf.getName())) {
+                throw new IllegalArgumentException("Only direct field properties are editable");
+            }
+            Object rootBean = getBean(request.getBeanName());
+            Object parent = navigate(rootBean, path.subList(0, path.size() - 1));
+            if (parent == null) {
+                throw new IllegalArgumentException("Parent object is null");
+            }
+            Field field = findField(parent.getClass(), leaf.getName());
+            if (field == null) {
+                throw new IllegalArgumentException("Field not found: " + leaf.getName());
+            }
+            if (!isEditableSimpleType(field.getType())) {
+                throw new IllegalArgumentException("Only primitive/simple field types are editable");
+            }
+            field.setAccessible(true);
+            Object converted = convertTextValue(request.getValue(), field.getType());
+            field.set(parent, converted);
+            Object updated = unwrapProxy(field.get(parent));
+            response.setSuccess(true);
+            response.setClassName(classNameOf(updated == null ? field.getType() : updated));
+            response.setValuePreview(renderValue(updated));
+            return response;
+        } catch (Exception e) {
+            response.setSuccess(false);
+            response.setError(e.getMessage());
+            return response;
+        }
+    }
+
     private Object access(Object current, PathStep step) {
         if (current == null) {
             return null;
@@ -230,12 +271,14 @@ public class BeanExplorerService {
                 node.setValuePreview(renderValue(value));
                 node.setNodeKind(detectNodeKind(value == null ? field.getType() : value));
                 node.setExpandable(isExpandable(value));
+                node.setEditable(isEditableField(field));
             } catch (Exception e) {
                 node.setClassName(field.getType().getName());
                 node.setValuePreview("读取失败");
                 node.setNodeKind("error");
                 node.setError(e.getMessage());
                 node.setExpandable(false);
+                node.setEditable(false);
             }
             children.add(node);
             if (children.size() >= MAX_CHILDREN) {
@@ -355,11 +398,78 @@ public class BeanExplorerService {
                 || Number.class.isAssignableFrom(type)
                 || CharSequence.class.isAssignableFrom(type)
                 || Boolean.class.isAssignableFrom(type)
+                || Character.class.isAssignableFrom(type)
                 || Date.class.isAssignableFrom(type)
                 || Enum.class.isAssignableFrom(type)
                 || UUID.class.isAssignableFrom(type)
                 || type.getName().startsWith("java.time.")
                 || type.getName().startsWith("java.lang.");
+    }
+
+    private boolean isEditableField(Field field) {
+        return field != null && isEditableSimpleType(field.getType());
+    }
+
+    private boolean isEditableSimpleType(Class<?> type) {
+        return type.isPrimitive()
+                || Number.class.isAssignableFrom(type)
+                || CharSequence.class.isAssignableFrom(type)
+                || Boolean.class.isAssignableFrom(type)
+                || Character.class.isAssignableFrom(type)
+                || Enum.class.isAssignableFrom(type);
+    }
+
+    private Object convertTextValue(String rawValue, Class<?> targetType) {
+        String text = rawValue == null ? null : rawValue.trim();
+        if ("null".equalsIgnoreCase(text)) {
+            if (targetType.isPrimitive()) {
+                throw new IllegalArgumentException("Primitive field cannot be set to null");
+            }
+            return null;
+        }
+        if (targetType == String.class || CharSequence.class.isAssignableFrom(targetType)) {
+            return rawValue == null ? "" : rawValue;
+        }
+        if (targetType == char.class || targetType == Character.class) {
+            if (text == null || text.length() != 1) {
+                throw new IllegalArgumentException("Character field requires exactly one character");
+            }
+            return text.charAt(0);
+        }
+        if (targetType == boolean.class || targetType == Boolean.class) {
+            if (!"true".equalsIgnoreCase(text) && !"false".equalsIgnoreCase(text)) {
+                throw new IllegalArgumentException("Boolean field requires true or false");
+            }
+            return Boolean.valueOf(text);
+        }
+        if (targetType == byte.class || targetType == Byte.class) {
+            return Byte.valueOf(text);
+        }
+        if (targetType == short.class || targetType == Short.class) {
+            return Short.valueOf(text);
+        }
+        if (targetType == int.class || targetType == Integer.class) {
+            return Integer.valueOf(text);
+        }
+        if (targetType == long.class || targetType == Long.class) {
+            return Long.valueOf(text);
+        }
+        if (targetType == float.class || targetType == Float.class) {
+            return Float.valueOf(text);
+        }
+        if (targetType == double.class || targetType == Double.class) {
+            return Double.valueOf(text);
+        }
+        if (targetType.isEnum()) {
+            Object[] constants = targetType.getEnumConstants();
+            for (Object constant : constants) {
+                if (String.valueOf(constant).equals(text)) {
+                    return constant;
+                }
+            }
+            throw new IllegalArgumentException("Enum constant not found: " + text);
+        }
+        throw new IllegalArgumentException("Unsupported field type: " + targetType.getName());
     }
 
     private String renderValue(Object value) {

@@ -382,6 +382,24 @@
             background: var(--accent-light);
         }
 
+        .inline-edit {
+            flex: 1 1 auto;
+            min-width: 160px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 13px;
+            line-height: 1.4;
+            color: var(--text);
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.12);
+        }
+
+        .node-btn.editing {
+            background: var(--accent-light);
+        }
+
         #copyToast {
             position: fixed;
             bottom: 24px;
@@ -453,7 +471,8 @@
         expandedGroup: null,
         expandedNodes: {},
         inspectCache: {},
-        lastResult: null
+        lastResult: null,
+        editingKey: null
     };
 
     const beanGroupsEl = document.getElementById('beanGroups');
@@ -675,6 +694,10 @@
         return beanName + '::' + JSON.stringify(path || []);
     }
 
+    function samePath(a, b) {
+        return JSON.stringify(a || []) === JSON.stringify(b || []);
+    }
+
     function clearResultTreeState() {
         Object.keys(state.inspectCache).forEach(function(k) {
             if (k.indexOf('RESULT::') === 0) delete state.inspectCache[k];
@@ -807,9 +830,11 @@
             row.appendChild(copyBtn);
         }
 
+        const nodeKey = cacheKey(node.beanName, node.path);
+        const editing = state.editingKey === nodeKey;
         const expanded = isExpanded(node.beanName, node.path);
-        const btn = document.createElement('button');
-        btn.className = 'node-btn' + (expanded ? ' active' : '') + (isBeanRoot && state.selectedBean === node.beanName ? ' active' : '');
+        const btn = document.createElement(editing ? 'div' : 'button');
+        btn.className = 'node-btn' + (expanded ? ' active' : '') + (isBeanRoot && state.selectedBean === node.beanName ? ' active' : '') + (editing ? ' editing' : '');
 
         let metaText;
         if (isBeanRoot) {
@@ -818,16 +843,62 @@
             metaText = '<strong>' + escapeHtml(node.label) + '</strong> ' + escapeHtml(node.valuePreview || 'null');
         }
 
-        btn.innerHTML =
-            '<div class="node-line">' +
-            '<div class="node-arrow">' + (node.expandable ? (expanded ? '▾' : '▸') : '·') + '</div>' +
-            '<div class="node-name">' + (isBeanRoot ? escapeHtml(node.label || '-') : '') + '</div>' +
-            '<div class="meta">' + metaText + '</div>' +
-            '</div>' +
-            '';
-        btn.onclick = () => toggleNode(node, isBeanRoot);
+        if (editing) {
+            btn.innerHTML =
+                '<div class="node-line">' +
+                '<div class="node-arrow">·</div>' +
+                '<div class="node-name">' + escapeHtml(node.label || '-') + '</div>' +
+                '<input class="inline-edit" data-node-key="' + escapeHtml(nodeKey) + '" value="' + escapeHtml(node.valuePreview == null ? '' : node.valuePreview) + '">' +
+                '</div>';
+        } else {
+            btn.innerHTML =
+                '<div class="node-line">' +
+                '<div class="node-arrow">' + (node.expandable ? (expanded ? '▾' : '▸') : '·') + '</div>' +
+                '<div class="node-name">' + (isBeanRoot ? escapeHtml(node.label || '-') : '') + '</div>' +
+                '<div class="meta">' + metaText + '</div>' +
+                '</div>';
+        }
+        if (!editing) {
+            btn.onclick = () => toggleNode(node, isBeanRoot);
+        }
+        if (!editing && node.editable && !isBeanRoot) {
+            btn.ondblclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                beginInlineEdit(node);
+            };
+        }
         row.appendChild(btn);
         wrap.appendChild(row);
+
+        if (editing) {
+            setTimeout(function() {
+                const input = wrap.querySelector('.inline-edit');
+                if (!input) {
+                    return;
+                }
+                input.focus();
+                input.select();
+                input.onclick = function(e) {
+                    e.stopPropagation();
+                };
+                input.ondblclick = function(e) {
+                    e.stopPropagation();
+                };
+                input.onkeydown = function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveInlineEdit(node, input.value);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelInlineEdit();
+                    }
+                };
+                input.onblur = function() {
+                    saveInlineEdit(node, input.value);
+                };
+            }, 0);
+        }
 
         if (expanded) {
             const response = state.inspectCache[cacheKey(node.beanName, node.path)];
@@ -848,6 +919,7 @@
                         valuePreview: child.valuePreview,
                         nodeKind: child.nodeKind,
                         expandable: child.expandable,
+                        editable: child.editable,
                         path: child.path || []
                     }, level + 1, false));
                 });
@@ -859,6 +931,9 @@
     }
 
     async function toggleNode(node, isBeanRoot) {
+        if (state.editingKey) {
+            return;
+        }
         if (isBeanRoot) {
             state.selectedBean = node.beanName;
         }
@@ -889,6 +964,62 @@
     async function loadBeans() {
         state.groups = await request('/bean-explorer/api/beans');
         renderGroups();
+    }
+
+    function beginInlineEdit(node) {
+        state.editingKey = cacheKey(node.beanName, node.path);
+        renderGroups();
+    }
+
+    function cancelInlineEdit() {
+        state.editingKey = null;
+        renderGroups();
+    }
+
+    function updateCachedNodeValue(beanName, path, payload) {
+        const parentPath = (path || []).slice(0, Math.max(0, (path || []).length - 1));
+        const parentCache = state.inspectCache[cacheKey(beanName, parentPath)];
+        if (parentCache && parentCache.children) {
+            parentCache.children.forEach(function(child) {
+                if (samePath(child.path, path)) {
+                    child.valuePreview = payload.valuePreview;
+                    child.className = payload.className;
+                    child.expandable = false;
+                }
+            });
+        }
+    }
+
+    async function saveInlineEdit(node, value) {
+        const editingKey = cacheKey(node.beanName, node.path);
+        if (state.editingKey !== editingKey) {
+            return;
+        }
+        try {
+            const response = await request('/bean-explorer/api/update-property', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    beanName: node.beanName,
+                    path: node.path || [],
+                    value: value
+                })
+            });
+            if (!response.success) {
+                showCopyToast(response.error || 'Update failed');
+                state.editingKey = null;
+                renderGroups();
+                return;
+            }
+            updateCachedNodeValue(node.beanName, node.path, response);
+            state.editingKey = null;
+            renderGroups();
+            showCopyToast('Updated');
+        } catch (e) {
+            state.editingKey = null;
+            renderGroups();
+            showCopyToast(e.message || 'Update failed');
+        }
     }
 
     async function executeCode() {

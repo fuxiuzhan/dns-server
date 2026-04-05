@@ -14,6 +14,8 @@ public class BeanPropertyNode {
 
     private boolean expandable;
 
+    private boolean editable;
+
     private List<PathStep> path;
 
     private String error;
@@ -56,6 +58,14 @@ public class BeanPropertyNode {
 
     public void setExpandable(boolean expandable) {
         this.expandable = expandable;
+    }
+
+    public boolean isEditable() {
+        return editable;
+    }
+
+    public void setEditable(boolean editable) {
+        this.editable = editable;
     }
 
     public List<PathStep> getPath() {
