@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bean Explorer</title>
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
+    <style>
+        :root {
+            --text: #3f4747;
+            --text-light: #8a949b;
+            --line: #e8ebf0;
+            --line-dark: #d0d5dd;
+            --accent: #4a90e2;
+            --accent-light: #ecf4ff;
+            --success: #52c41a;
+            --warning: #faad14;
+            --danger: #ff4d4f;
+            --info: #1890ff;
+            --get: #61affe;
+            --post: #49cc90;
+            --put: #fca130;
+            --delete: #f93e3e;
+            --hover-bg: #f6f8fa;
+            --card-bg: #fff;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Droid Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background-attachment: fixed;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        h1, h2 {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex-grow: 1;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 12px 20px;
+            background: #fafafa;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header:hover {
+            background: #f5f5f5;
+        }
+
+        .panel-header .arrow {
+            font-size: 12px;
+            margin-right: 8px;
+            transition: transform 0.2s;
+            color: var(--text-light);
+        }
+
+        .panel.collapsed .panel-header .arrow {
+            transform: rotate(-90deg);
+        }
+
+        .panel.collapsed .panel-body {
+            display: none;
+        }
+
+        .panel-body {
+            padding: 20px;
+        }
+
+        .search {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+            transition: all 200ms;
+            margin-bottom: 12px;
+        }
+
+        .search:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .bean-groups {
+            margin-top: 0;
+        }
+
+        .group {
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--get);
+            border-radius: 6px;
+            background: linear-gradient(to right, rgba(74, 144, 226, 0.02), transparent);
+            margin-bottom: 8px;
+            overflow: visible;
+        }
+
+        .group-toggle {
+            width: 90%;
+            margin: 0 auto;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+            padding: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            color: var(--text);
+            transition: all 150ms;
+        }
+
+        .group-main {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .group-type {
+            font-size: 13px;
+            font-weight: 700;
+            word-break: break-all;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .group-meta {
+            margin-top: 2px;
+            color: var(--text-light);
+            font-size: 12px;
+        }
+
+        .group-arrow,
+        .node-arrow {
+            color: var(--accent);
+            font-size: 14px;
+            flex-shrink: 0;
+            transition: transform 200ms;
+        }
+
+        .group-toggle.expanded .group-arrow {
+            transform: rotate(180deg);
+        }
+
+        .group-list {
+            padding: 8px 0 12px;
+            border-top: 1px solid var(--line);
+            background: linear-gradient(to bottom, rgba(74, 144, 226, 0.01), transparent);
+            margin-left: 5%;
+            width: 90%;
+        }
+
+        .tree-node {
+            margin-top: 0;
+        }
+
+        .tree-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tree-indent {
+            width: 12px;
+            flex-shrink: 0;
+            margin-left: 2px;
+            border-left: 1px dashed var(--line);
+        }
+
+        .node-btn {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: transparent;
+            border-radius: 4px;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+            padding: 4px 8px;
+            transition: all 150ms;
+            font-size: 13px;
+        }
+
+        .node-btn:hover {
+            background: var(--hover-bg);
+            padding-left: 12px;
+        }
+
+        .node-btn.active {
+            background: var(--accent-light);
+            border-left: 3px solid var(--accent);
+            padding-left: 5px;
+        }
+
+        .node-line {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .node-name {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.4;
+            flex: 0 0 auto;
+            max-width: none;
+            word-break: break-all;
+            color: var(--text);
+        }
+
+        .meta {
+            color: var(--text-light);
+            font-size: 13px;
+            line-height: 1.4;
+            min-width: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .meta strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .tree-children {
+            margin-left: 0;
+            padding-left: 18px;
+            border-left: 2px solid var(--line);
+            margin-top: 4px;
+        }
+
+        #editor-container {
+            width: 100%;
+            height: 300px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .primary {
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 200ms;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+        }
+
+        .primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        pre.output {
+            margin: 12px 0 0;
+            min-height: 100px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+            color: var(--text);
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            font-family: Menlo, Consolas, "SFMono-Regular", monospace;
+        }
+
+        .empty {
+            padding: 12px 14px;
+            border: 1px dashed var(--line);
+            border-radius: 6px;
+            color: var(--text-light);
+            font-size: 13px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.02), rgba(118, 75, 162, 0.02));
+        }
+
+        .error {
+            color: var(--danger);
+        }
+
+        .panel-desc {
+            margin-bottom: 12px;
+            color: var(--text-light);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .copy-path-btn {
+            flex-shrink: 0;
+            border: 1px solid var(--line);
+            background: var(--card-bg);
+            color: var(--text-light);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-right: 4px;
+            line-height: 1.4;
+        }
+
+        .copy-path-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+
+        .inline-edit {
+            flex: 1 1 auto;
+            min-width: 160px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 13px;
+            line-height: 1.4;
+            color: var(--text);
+            background: #fff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.12);
+        }
+
+        .node-btn.editing {
+            background: var(--accent-light);
+        }
+
+        #copyToast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(40, 44, 52, 0.92);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.25s ease;
+        }
+
+        #copyToast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>Bean Explorer</h1>
+        <div class="subtitle">Inspect Spring beans and execute Java code dynamically in the runtime environment.</div>
+    </div>
+
+    <section id="beanPanel" class="panel collapsed">
+        <div class="panel-header" onclick="togglePanel('beanPanel')">
+            <span class="arrow">▼</span>
+            <h2>Bean Explorer</h2>
+        </div>
+        <div class="panel-body">
+            <div class="panel-desc">Search beans by name or type, then expand nodes to inspect the property tree. Use <strong>Copy Path</strong> beside a node to get a <code>bean.property</code> expression for the executor below.</div>
+            <input id="searchInput" class="search" placeholder="Search bean name or type...">
+            <div id="beanGroups" class="bean-groups"></div>
+        </div>
+    </section>
+
+    <section id="execPanel" class="panel collapsed">
+        <div class="panel-header" onclick="togglePanel('execPanel')">
+            <span class="arrow">▼</span>
+            <h2>Dynamic Java Executor</h2>
+        </div>
+        <div class="panel-body">
+            <div class="panel-desc">
+                Use chained access like <strong>bean.property</strong>; for multi-line input, join statements with semicolons, and <strong>the last expression becomes the result</strong> (lines with only <code>//</code> are ignored).
+                After typing <strong>.</strong>, completion is sourced from the same tree on the left through <code>/inspect</code> child nodes, with reflective methods like <code>List.add</code> appended.
+                Assignment examples: <code>bean.prop = value</code> or <code>bean.list[0] = value</code>. <code>ctx</code> provides reflection helpers.
+            </div>
+            <div id="editor-container"></div>
+            <div class="actions">
+                <button id="runBtn" class="primary">Execute (Ctrl+Enter)</button>
+                <div class="meta">Results show return type and value preview.</div>
+            </div>
+            <pre id="executeOutput" class="output">Waiting for execution...</pre>
+        </div>
+    </section>
+</div>
+<div id="copyToast" role="status" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<script>
+    window.BEAN_EXPLORER_CONFIG = {
+        apiBase: "__BEAN_EXPLORER_API_BASE__",
+        authEnabled: "__BEAN_EXPLORER_AUTH_ENABLED__" === "true",
+        authHeader: "__BEAN_EXPLORER_AUTH_HEADER__",
+        authQuery: "__BEAN_EXPLORER_AUTH_QUERY__"
+    };
+
+    const state = {
+        groups: [],
+        selectedBean: null,
+        expandedGroup: null,
+        expandedNodes: {},
+        inspectCache: {},
+        lastResult: null,
+        editingKey: null
+    };
+
+    const beanGroupsEl = document.getElementById('beanGroups');
+    const searchInputEl = document.getElementById('searchInput');
+    const executeOutputEl = document.getElementById('executeOutput');
+    let editor;
+
+    function getTokenFromLocation() {
+        const params = new URLSearchParams(window.location.search || '');
+        const token = params.get(window.BEAN_EXPLORER_CONFIG.authQuery);
+        if (token) {
+            try {
+                window.localStorage.setItem('beanExplorerToken', token);
+            } catch (e) {
+            }
+            return token;
+        }
+        try {
+            return window.localStorage.getItem('beanExplorerToken') || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function saveToken(token) {
+        try {
+            if (token) {
+                window.localStorage.setItem('beanExplorerToken', token);
+            } else {
+                window.localStorage.removeItem('beanExplorerToken');
+            }
+        } catch (e) {
+        }
+    }
+
+    async function ensureAuthorized(forcePrompt) {
+        if (!window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            return true;
+        }
+        let token = forcePrompt ? '' : getTokenFromLocation();
+        while (!token) {
+            token = window.prompt('Bean Explorer token required. Please enter the access token:', '');
+            if (token == null) {
+                throw new Error('Token is required');
+            }
+            token = token.trim();
+        }
+        saveToken(token);
+        return true;
+    }
+
+    function buildApiUrl(path) {
+        return window.BEAN_EXPLORER_CONFIG.apiBase + path;
+    }
+
+    function withAuth(options) {
+        const requestOptions = options || {};
+        requestOptions.headers = requestOptions.headers || {};
+        if (window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            const token = getTokenFromLocation();
+            if (token) {
+                requestOptions.headers[window.BEAN_EXPLORER_CONFIG.authHeader] = token;
+            }
+        }
+        return requestOptions;
+    }
+
+    function togglePanel(id) {
+        document.getElementById(id).classList.toggle('collapsed');
+        if (id === 'execPanel' && !document.getElementById(id).classList.contains('collapsed')) {
+            if (editor) editor.layout();
+        }
+    }
+
+    function completionRange(model, position, prefixLen) {
+        const start = Math.max(1, position.column - prefixLen);
+        return new monaco.Range(position.lineNumber, start, position.lineNumber, position.column);
+    }
+
+    function parseCompletionContext(model, position) {
+        const line = model.getLineContent(position.lineNumber);
+        const before = line.substring(0, position.column - 1);
+        const dot = before.lastIndexOf('.');
+        if (dot >= 0) {
+            const receiver = before.substring(0, dot).trim();
+            const afterDot = before.substring(dot + 1);
+            const pm = afterDot.match(/^([\w$]*)/);
+            const prefix = pm ? pm[1] : '';
+            if (receiver.length > 0) {
+                return { mode: 'member', receiver: receiver, prefix: prefix };
+            }
+        }
+        const wm = before.match(/([\w$]*)$/);
+        const word = wm ? wm[1] : '';
+        return { mode: 'bean', prefix: word };
+    }
+
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+        monaco.languages.registerCompletionItemProvider('java', {
+            triggerCharacters: ['.'],
+            provideCompletionItems: function(model, position) {
+                const ctx = parseCompletionContext(model, position);
+                if (ctx.mode === 'member') {
+                    const range = completionRange(model, position, ctx.prefix.length);
+                    return request(buildApiUrl('/members'), withAuth({
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ expression: ctx.receiver })
+                    })).then(function(data) {
+                        let hints = data.hints || [];
+                        if (ctx.prefix) {
+                            const p = ctx.prefix.toLowerCase();
+                            hints = hints.filter(function(h) {
+                                const n = (h.name || '').toLowerCase();
+                                const ins = (h.insertText || '').toLowerCase();
+                                return n.indexOf(p) === 0 || ins.indexOf(p) === 0;
+                            });
+                        }
+                        const suggestions = hints.map(function(h) {
+                            const isMethod = h.kind === 'METHOD';
+                            const isProp = h.kind === 'PROPERTY' || h.kind === 'FIELD';
+                            const insert = (!isMethod && h.insertText) ? h.insertText : (isMethod ? h.name + '($1)' : h.name);
+                            let doc = h.signature || h.typeName || '';
+                            if (h.valuePreview != null && h.valuePreview !== '') {
+                                doc += (doc ? '\n' : '') + 'Preview: ' + h.valuePreview;
+                            }
+                            if (h.expandable) {
+                                doc += (doc ? '\n' : '') + 'Matches the bean tree on the left and can be expanded further';
+                            }
+                            if (data.valueTypeName) {
+                                doc += (doc ? '\n' : '') + 'Current type: ' + data.valueTypeName;
+                            }
+                            if (data.error) {
+                                doc += (doc ? '\n' : '') + '(reflection fallback: ' + data.error + ')';
+                            }
+                            return {
+                                label: h.name + (isMethod ? '(…)' : ''),
+                                kind: isMethod ? monaco.languages.CompletionItemKind.Method : monaco.languages.CompletionItemKind.Field,
+                                detail: h.typeName || h.signature,
+                                documentation: doc,
+                                insertText: insert,
+                                insertTextRules: isMethod ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+                                sortText: (isMethod ? '2' : isProp ? '0' : '1') + String(h.name),
+                                range: range
+                            };
+                        });
+                        return { suggestions: suggestions };
+                    }).catch(function() {
+                        return { suggestions: [] };
+                    });
+                }
+
+                const prefix = ctx.prefix || '';
+                const range = completionRange(model, position, prefix.length);
+                const suggestions = [];
+
+                state.groups.forEach(function(group) {
+                    group.beans.forEach(function(bean) {
+                        if (!prefix || bean.beanName.toLowerCase().indexOf(prefix.toLowerCase()) === 0) {
+                            suggestions.push({
+                                label: bean.beanName,
+                                kind: monaco.languages.CompletionItemKind.Variable,
+                                documentation: bean.className,
+                                detail: bean.className,
+                                insertText: bean.beanName,
+                                range: range
+                            });
+                        }
+                    });
+                });
+                return { suggestions: suggestions };
+            }
+        });
+
+        editor = monaco.editor.create(document.getElementById('editor-container'), {
+            value: [
+                '// bean.property; type . to trigger server-side field/method completion; List example: myBean.myList.add(1)',
+                'dnsServer'
+            ].join('\n'),
+            language: 'java',
+            theme: 'vs',
+            automaticLayout: true,
+            fixedOverflowWidgets: true,
+            minimap: { enabled: false },
+            fontSize: 13,
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            padding: { top: 10, bottom: 10 }
+        });
+
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, function() {
+            executeCode();
+        });
+    });
+
+    async function request(url, options, retryOnUnauthorized) {
+        const response = await fetch(url, options);
+        if (response.status === 401 && retryOnUnauthorized !== false && window.BEAN_EXPLORER_CONFIG.authEnabled) {
+            saveToken('');
+            await ensureAuthorized(true);
+            return request(url, withAuth(options || {}), false);
+        }
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatPath(path) {
+        if (!path || path.length === 0) {
+            return '(root)';
+        }
+        return path.map(step => {
+            if (step.kind === 'FIELD') return '.' + step.name;
+            if (step.kind === 'INDEX') return '[' + step.index + ']';
+            if (step.kind === 'MAP_KEY') return '{' + step.mapKey + '}';
+            return '?';
+        }).join('');
+    }
+
+    /** Matches executor syntax: bean.field, list[i], map["key"] */
+    function formatExprPath(beanName, path) {
+        if (!beanName) return '';
+        let s = beanName;
+        for (const step of path || []) {
+            if (step.kind === 'FIELD') s += '.' + step.name;
+            else if (step.kind === 'INDEX') s += '[' + step.index + ']';
+            else if (step.kind === 'MAP_KEY') s += '[' + JSON.stringify(String(step.mapKey)) + ']';
+        }
+        return s;
+    }
+
+    let copyToastTimer;
+    function showCopyToast(msg) {
+        const el = document.getElementById('copyToast');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(copyToastTimer);
+        copyToastTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+    }
+
+    function copyToClipboard(text) {
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                showCopyToast('Copied: ' + text);
+            }).catch(function() {
+                fallbackCopy(text);
+            });
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            showCopyToast('Copied: ' + text);
+        } catch (e) {
+            showCopyToast('Copy failed');
+        }
+        document.body.removeChild(ta);
+    }
+
+    function cacheKey(beanName, path) {
+        if (!beanName) return 'RESULT::' + JSON.stringify(path || []);
+        return beanName + '::' + JSON.stringify(path || []);
+    }
+
+    function samePath(a, b) {
+        return JSON.stringify(a || []) === JSON.stringify(b || []);
+    }
+
+    function clearResultTreeState() {
+        Object.keys(state.inspectCache).forEach(function(k) {
+            if (k.indexOf('RESULT::') === 0) delete state.inspectCache[k];
+        });
+        Object.keys(state.expandedNodes).forEach(function(k) {
+            if (k.indexOf('RESULT::') === 0) delete state.expandedNodes[k];
+        });
+    }
+
+    function ensureExpandedGroup(filteredGroups) {
+        if (filteredGroups.length === 0) {
+            state.expandedGroup = null;
+            return;
+        }
+        if (state.expandedGroup && !filteredGroups.some(group => group.typeName === state.expandedGroup)) {
+            state.expandedGroup = null;
+        }
+    }
+
+    function isExpanded(beanName, path) {
+        return !!state.expandedNodes[cacheKey(beanName, path)];
+    }
+
+    async function fetchInspect(beanName, path) {
+        const key = cacheKey(beanName, path);
+        if (state.inspectCache[key]) {
+            return state.inspectCache[key];
+        }
+        
+        let url;
+        let body = { beanName, path };
+        
+        if (!beanName && state.lastResult) {
+            // This is a dynamic execution result, not a Spring bean
+            url = buildApiUrl('/inspect-result');
+            body = { path };
+        } else {
+            url = buildApiUrl('/inspect');
+        }
+
+        const response = await request(url, withAuth({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }));
+        state.inspectCache[key] = response;
+        return response;
+    }
+
+    function renderGroups() {
+        const keyword = searchInputEl.value.trim().toLowerCase();
+        const filteredGroups = state.groups.filter(group => {
+            if (!keyword) {
+                return true;
+            }
+            if (group.typeName.toLowerCase().includes(keyword)) {
+                return true;
+            }
+            return group.beans.some(bean => bean.beanName.toLowerCase().includes(keyword));
+        });
+
+        ensureExpandedGroup(filteredGroups);
+        beanGroupsEl.innerHTML = '';
+
+        if (filteredGroups.length === 0) {
+            beanGroupsEl.innerHTML = '<div class="empty">No matching beans found</div>';
+            return;
+        }
+
+        filteredGroups.forEach(group => {
+            const wrap = document.createElement('div');
+            wrap.className = 'group';
+
+            const toggle = document.createElement('button');
+            toggle.className = 'group-toggle' + (state.expandedGroup === group.typeName ? ' expanded' : '');
+            toggle.innerHTML =
+                '<div class="group-main">' +
+                '<div class="group-type">' + escapeHtml(group.typeName) + '</div>' +
+                '<div class="group-meta">' + group.count + ' Beans</div>' +
+                '</div>' +
+                '<div class="group-arrow">' + (state.expandedGroup === group.typeName ? '▾' : '▸') + '</div>';
+            toggle.onclick = () => {
+                state.expandedGroup = state.expandedGroup === group.typeName ? null : group.typeName;
+                renderGroups();
+            };
+            wrap.appendChild(toggle);
+
+            if (state.expandedGroup === group.typeName) {
+                const list = document.createElement('div');
+                list.className = 'group-list';
+                group.beans.forEach(bean => {
+                    list.appendChild(buildTreeNode({
+                        beanName: bean.beanName,
+                        label: bean.beanName,
+                        className: bean.className,
+                        valuePreview: bean.className,
+                        nodeKind: 'bean',
+                        expandable: true,
+                        path: []
+                    }, 0, true));
+                });
+                wrap.appendChild(list);
+            }
+
+            beanGroupsEl.appendChild(wrap);
+        });
+    }
+
+    function buildTreeNode(node, level, isBeanRoot) {
+        const wrap = document.createElement('div');
+        wrap.className = 'tree-node';
+
+        const row = document.createElement('div');
+        row.className = 'tree-row';
+
+        for (let i = 0; i < level; i++) {
+            const indent = document.createElement('div');
+            indent.className = 'tree-indent';
+            row.appendChild(indent);
+        }
+
+        if (node.beanName) {
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'copy-path-btn';
+            copyBtn.textContent = 'Copy Path';
+            copyBtn.title = 'Copy a bean.property expression for the executor below';
+            copyBtn.onclick = function(e) {
+                e.stopPropagation();
+                copyToClipboard(formatExprPath(node.beanName, node.path));
+            };
+            row.appendChild(copyBtn);
+        }
+
+        const nodeKey = cacheKey(node.beanName, node.path);
+        const editing = state.editingKey === nodeKey;
+        const expanded = isExpanded(node.beanName, node.path);
+        const btn = document.createElement(editing ? 'div' : 'button');
+        btn.className = 'node-btn' + (expanded ? ' active' : '') + (isBeanRoot && state.selectedBean === node.beanName ? ' active' : '') + (editing ? ' editing' : '');
+
+        let metaText;
+        if (isBeanRoot) {
+            metaText = '<strong>' + escapeHtml(node.beanName) + '</strong> ' + escapeHtml(node.className || 'Object');
+        } else {
+            metaText = '<strong>' + escapeHtml(node.label) + '</strong> ' + escapeHtml(node.valuePreview || 'null');
+        }
+
+        if (editing) {
+            btn.innerHTML =
+                '<div class="node-line">' +
+                '<div class="node-arrow">·</div>' +
+                '<div class="node-name">' + escapeHtml(node.label || '-') + '</div>' +
+                '<input class="inline-edit" data-node-key="' + escapeHtml(nodeKey) + '" value="' + escapeHtml(node.valuePreview == null ? '' : node.valuePreview) + '">' +
+                '</div>';
+        } else {
+            btn.innerHTML =
+                '<div class="node-line">' +
+                '<div class="node-arrow">' + (node.expandable ? (expanded ? '▾' : '▸') : '·') + '</div>' +
+                '<div class="node-name">' + (isBeanRoot ? escapeHtml(node.label || '-') : '') + '</div>' +
+                '<div class="meta">' + metaText + '</div>' +
+                '</div>';
+        }
+        if (!editing) {
+            btn.onclick = () => toggleNode(node, isBeanRoot);
+        }
+        if (!editing && node.editable && !isBeanRoot) {
+            btn.ondblclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                beginInlineEdit(node);
+            };
+        }
+        row.appendChild(btn);
+        wrap.appendChild(row);
+
+        if (editing) {
+            setTimeout(function() {
+                const input = wrap.querySelector('.inline-edit');
+                if (!input) {
+                    return;
+                }
+                input.focus();
+                input.select();
+                input.onclick = function(e) {
+                    e.stopPropagation();
+                };
+                input.ondblclick = function(e) {
+                    e.stopPropagation();
+                };
+                input.onkeydown = function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveInlineEdit(node, input.value);
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelInlineEdit();
+                    }
+                };
+                input.onblur = function() {
+                    saveInlineEdit(node, input.value);
+                };
+            }, 0);
+        }
+
+        if (expanded) {
+            const response = state.inspectCache[cacheKey(node.beanName, node.path)];
+            const childrenWrap = document.createElement('div');
+            childrenWrap.className = 'tree-children';
+            if (!response) {
+                childrenWrap.innerHTML = '<div class="empty">Loading...</div>';
+            } else             if (response.error) {
+                childrenWrap.innerHTML = '<div class="empty error">' + escapeHtml(response.error) + '</div>';
+            } else if (!response.children || response.children.length === 0) {
+                childrenWrap.innerHTML = '<div class="empty">No properties found</div>';
+            } else {
+                response.children.forEach(child => {
+                    childrenWrap.appendChild(buildTreeNode({
+                        beanName: node.beanName,
+                        label: child.label,
+                        className: child.className,
+                        valuePreview: child.valuePreview,
+                        nodeKind: child.nodeKind,
+                        expandable: child.expandable,
+                        editable: child.editable,
+                        path: child.path || []
+                    }, level + 1, false));
+                });
+            }
+            wrap.appendChild(childrenWrap);
+        }
+
+        return wrap;
+    }
+
+    async function toggleNode(node, isBeanRoot) {
+        if (state.editingKey) {
+            return;
+        }
+        if (isBeanRoot) {
+            state.selectedBean = node.beanName;
+        }
+        if (!node.expandable) {
+            if (node.beanName === '') refreshExecuteResult();
+            else renderGroups();
+            return;
+        }
+
+        const key = cacheKey(node.beanName, node.path);
+        if (state.expandedNodes[key]) {
+            delete state.expandedNodes[key];
+            if (node.beanName === '') refreshExecuteResult();
+            else renderGroups();
+            return;
+        }
+
+        state.expandedNodes[key] = true;
+        if (node.beanName === '') refreshExecuteResult();
+        else renderGroups();
+        
+        await fetchInspect(node.beanName, node.path);
+        
+        if (node.beanName === '') refreshExecuteResult();
+        else renderGroups();
+    }
+
+    async function loadBeans() {
+        await ensureAuthorized(false);
+        state.groups = await request(buildApiUrl('/beans'), withAuth());
+        renderGroups();
+    }
+
+    function beginInlineEdit(node) {
+        state.editingKey = cacheKey(node.beanName, node.path);
+        renderGroups();
+    }
+
+    function cancelInlineEdit() {
+        state.editingKey = null;
+        renderGroups();
+    }
+
+    function updateCachedNodeValue(beanName, path, payload) {
+        const parentPath = (path || []).slice(0, Math.max(0, (path || []).length - 1));
+        const parentCache = state.inspectCache[cacheKey(beanName, parentPath)];
+        if (parentCache && parentCache.children) {
+            parentCache.children.forEach(function(child) {
+                if (samePath(child.path, path)) {
+                    child.valuePreview = payload.valuePreview;
+                    child.className = payload.className;
+                    child.expandable = false;
+                }
+            });
+        }
+    }
+
+    async function saveInlineEdit(node, value) {
+        const editingKey = cacheKey(node.beanName, node.path);
+        if (state.editingKey !== editingKey) {
+            return;
+        }
+        try {
+            const response = await request(buildApiUrl('/update-property'), withAuth({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    beanName: node.beanName,
+                    path: node.path || [],
+                    value: value
+                })
+            }));
+            if (!response.success) {
+                showCopyToast(response.error || 'Update failed');
+                state.editingKey = null;
+                renderGroups();
+                return;
+            }
+            updateCachedNodeValue(node.beanName, node.path, response);
+            state.editingKey = null;
+            renderGroups();
+            showCopyToast('Updated');
+        } catch (e) {
+            state.editingKey = null;
+            renderGroups();
+            showCopyToast(e.message || 'Update failed');
+        }
+    }
+
+    async function executeCode() {
+        if (!editor) return;
+        executeOutputEl.innerHTML = '<div class="empty">Executing...</div>';
+        executeOutputEl.classList.remove('error');
+        state.lastResult = null;
+        clearResultTreeState();
+        try {
+            const response = await request(buildApiUrl('/execute'), withAuth({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ javaCode: editor.getValue() })
+            }));
+            if (!response.success) {
+                executeOutputEl.classList.add('error');
+                executeOutputEl.textContent = response.error || 'Execution failed';
+                return;
+            }
+            clearResultTreeState();
+            state.lastResult = response.resultNode || null;
+            executeOutputEl.innerHTML = '';
+            if (!response.resultNode) {
+                const pre = document.createElement('pre');
+                pre.className = 'output';
+                pre.textContent = (response.result != null && response.result !== '') ? response.result : '(Execution succeeded but resultNode is missing)';
+                executeOutputEl.appendChild(pre);
+                return;
+            }
+            executeOutputEl.appendChild(buildTreeNode({
+                beanName: '',
+                label: 'Result',
+                className: response.resultType,
+                valuePreview: response.result,
+                nodeKind: response.resultNode.nodeKind,
+                expandable: response.resultNode.expandable,
+                path: []
+            }, 0, false));
+        } catch (e) {
+            executeOutputEl.classList.add('error');
+            executeOutputEl.textContent = e.message;
+        }
+    }
+
+    function refreshExecuteResult() {
+        if (!state.lastResult) return;
+        const oldScroll = executeOutputEl.scrollTop;
+        executeOutputEl.innerHTML = '';
+        executeOutputEl.appendChild(buildTreeNode({
+            beanName: '',
+            label: 'Result',
+            className: state.lastResult.className,
+            valuePreview: state.lastResult.valuePreview,
+            nodeKind: state.lastResult.nodeKind,
+            expandable: state.lastResult.expandable,
+            path: []
+        }, 0, false));
+        executeOutputEl.scrollTop = oldScroll;
+    }
+
+    document.getElementById('runBtn').onclick = executeCode;
+    searchInputEl.oninput = renderGroups;
+
+    loadBeans().catch(err => {
+        beanGroupsEl.innerHTML = '<div class="empty error">' + escapeHtml(err.message) + '</div>';
+    });
+</script>
+</body>
+</html>

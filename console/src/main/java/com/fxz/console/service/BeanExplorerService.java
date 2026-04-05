@@ -1,0 +1,763 @@
+package com.fxz.console.service;
+
+import com.fxz.console.pojo.beanexplorer.*;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
+import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+@Service
+public class BeanExplorerService {
+
+    private static final int MAX_CHILDREN = 200;
+
+    private final ApplicationContext applicationContext;
+
+    public BeanExplorerService(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
+
+    public List<BeanTypeGroup> listBeans() {
+        String[] beanNames = applicationContext.getBeanDefinitionNames();
+        Map<String, List<BeanSummary>> grouped = new TreeMap<String, List<BeanSummary>>();
+        for (String beanName : beanNames) {
+            try {
+                Object bean = unwrapProxy(applicationContext.getBean(beanName));
+                Class<?> beanClass = resolveDisplayClass(bean);
+                BeanSummary summary = new BeanSummary();
+                summary.setBeanName(beanName);
+                summary.setClassName(beanClass.getName());
+                String typeName = beanClass.getName();
+                if (!grouped.containsKey(typeName)) {
+                    grouped.put(typeName, new ArrayList<BeanSummary>());
+                }
+                grouped.get(typeName).add(summary);
+            } catch (Throwable ignored) {
+                // Ignore beans that fail to load
+            }
+        }
+        List<BeanTypeGroup> result = new ArrayList<BeanTypeGroup>();
+        for (Map.Entry<String, List<BeanSummary>> entry : grouped.entrySet()) {
+            entry.getValue().sort(Comparator.comparing(BeanSummary::getBeanName));
+            BeanTypeGroup group = new BeanTypeGroup();
+            group.setTypeName(entry.getKey());
+            group.setCount(entry.getValue().size());
+            group.setBeans(entry.getValue());
+            result.add(group);
+        }
+        return result;
+    }
+
+    public BeanInspectResponse inspect(BeanInspectRequest request) {
+        if (request == null || !StringUtils.hasText(request.getBeanName())) {
+            throw new IllegalArgumentException("beanName 不能为空");
+        }
+        Object rootBean;
+        try {
+            rootBean = unwrapProxy(applicationContext.getBean(request.getBeanName()));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("无法获取 Bean: " + request.getBeanName(), e);
+        }
+        Object current = navigate(rootBean, request.getPath());
+
+        BeanInspectResponse response = new BeanInspectResponse();
+        response.setBeanName(request.getBeanName());
+        response.setRootClassName(classNameOf(resolveDisplayClass(rootBean)));
+        response.setCurrentClassName(classNameOf(current));
+        response.setValuePreview(renderValue(current));
+        response.setNodeKind(detectNodeKind(current));
+        response.setPath(copyPath(request.getPath()));
+        response.setChildren(buildChildren(request.getPath(), current));
+        return response;
+    }
+
+    public ApplicationContext getApplicationContext() {
+        return applicationContext;
+    }
+
+    public Object getBean(String beanName) {
+        return unwrapProxy(applicationContext.getBean(beanName));
+    }
+
+    public String describeValue(Object value) {
+        return renderValue(value);
+    }
+
+    public Object navigate(Object root, List<PathStep> path) {
+        Object current = unwrapProxy(root);
+        if (CollectionUtils.isEmpty(path)) {
+            return current;
+        }
+        for (PathStep step : path) {
+            current = access(current, step);
+        }
+        return unwrapProxy(current);
+    }
+
+    /**
+     * 与 {@link #inspect(BeanInspectRequest)} 相同子树逻辑，但从任意根对象开始（用于动态执行结果展开）。
+     */
+    public BeanInspectResponse inspectObjectAtPath(Object root, List<PathStep> path) {
+        List<PathStep> safePath = path == null ? Collections.<PathStep>emptyList() : path;
+        Object unwrappedRoot = navigate(root, Collections.<PathStep>emptyList());
+        Object target = navigate(root, safePath);
+        BeanInspectResponse response = new BeanInspectResponse();
+        response.setRootClassName(classNameOf(unwrappedRoot));
+        response.setCurrentClassName(classNameOf(target));
+        response.setValuePreview(renderValue(target));
+        response.setNodeKind(detectNodeKind(target));
+        response.setPath(copyPath(safePath));
+        response.setChildren(buildChildren(safePath, target));
+        return response;
+    }
+
+    public Object unwrapValue(Object candidate) {
+        return unwrapProxy(candidate);
+    }
+
+    public UpdateBeanPropertyResponse updateProperty(UpdateBeanPropertyRequest request) {
+        UpdateBeanPropertyResponse response = new UpdateBeanPropertyResponse();
+        try {
+            if (request == null || !StringUtils.hasText(request.getBeanName())) {
+                throw new IllegalArgumentException("beanName is required");
+            }
+            List<PathStep> path = request.getPath() == null ? Collections.<PathStep>emptyList() : request.getPath();
+            if (path.isEmpty()) {
+                throw new IllegalArgumentException("Only field properties can be edited");
+            }
+            PathStep leaf = path.get(path.size() - 1);
+            if (leaf == null || !"FIELD".equalsIgnoreCase(leaf.getKind()) || !StringUtils.hasText(leaf.getName())) {
+                throw new IllegalArgumentException("Only direct field properties are editable");
+            }
+            Object rootBean = getBean(request.getBeanName());
+            Object parent = navigate(rootBean, path.subList(0, path.size() - 1));
+            if (parent == null) {
+                throw new IllegalArgumentException("Parent object is null");
+            }
+            Field field = findField(parent.getClass(), leaf.getName());
+            if (field == null) {
+                throw new IllegalArgumentException("Field not found: " + leaf.getName());
+            }
+            if (!isEditableSimpleType(field.getType())) {
+                throw new IllegalArgumentException("Only primitive/simple field types are editable");
+            }
+            field.setAccessible(true);
+            Object converted = convertTextValue(request.getValue(), field.getType());
+            field.set(parent, converted);
+            Object updated = unwrapProxy(field.get(parent));
+            response.setSuccess(true);
+            response.setClassName(classNameOf(updated == null ? field.getType() : updated));
+            response.setValuePreview(renderValue(updated));
+            return response;
+        } catch (Exception e) {
+            response.setSuccess(false);
+            response.setError(e.getMessage());
+            return response;
+        }
+    }
+
+    private Object access(Object current, PathStep step) {
+        if (current == null) {
+            return null;
+        }
+        if (step == null || !StringUtils.hasText(step.getKind())) {
+            throw new IllegalArgumentException("路径节点非法");
+        }
+        if ("FIELD".equalsIgnoreCase(step.getKind())) {
+            Field field = findField(current.getClass(), step.getName());
+            if (field == null) {
+                throw new IllegalArgumentException("字段不存在: " + step.getName());
+            }
+            try {
+                field.setAccessible(true);
+                return unwrapProxy(field.get(current));
+            } catch (IllegalAccessException e) {
+                throw new IllegalStateException("字段访问失败: " + step.getName(), e);
+            }
+        }
+        if ("INDEX".equalsIgnoreCase(step.getKind())) {
+            Integer index = step.getIndex();
+            if (index == null || index < 0) {
+                throw new IllegalArgumentException("索引非法");
+            }
+            if (current.getClass().isArray()) {
+                if (index >= Array.getLength(current)) {
+                    throw new IllegalArgumentException("索引越界: " + index);
+                }
+                return unwrapProxy(Array.get(current, index));
+            }
+            if (current instanceof List) {
+                List<?> list = (List<?>) current;
+                if (index >= list.size()) {
+                    throw new IllegalArgumentException("索引越界: " + index);
+                }
+                return unwrapProxy(list.get(index));
+            }
+            if (current instanceof Collection) {
+                Collection<?> coll = (Collection<?>) current;
+                if (index < 0 || index >= coll.size()) {
+                    throw new IllegalArgumentException("索引越界: " + index);
+                }
+                int j = 0;
+                for (Object o : coll) {
+                    if (j++ == index) {
+                        return unwrapProxy(o);
+                    }
+                }
+                throw new IllegalArgumentException("索引越界: " + index);
+            }
+            throw new IllegalArgumentException("当前节点不支持索引访问");
+        }
+        if ("MAP_KEY".equalsIgnoreCase(step.getKind())) {
+            if (!(current instanceof Map)) {
+                throw new IllegalArgumentException("当前节点不是 Map");
+            }
+            return unwrapProxy(((Map<?, ?>) current).get(step.getMapKey()));
+        }
+        throw new IllegalArgumentException("未知路径类型: " + step.getKind());
+    }
+
+    public List<BeanPropertyNode> buildChildren(List<PathStep> basePath, Object current) {
+        if (!isExpandable(current)) {
+            return Collections.emptyList();
+        }
+        if (current instanceof Map) {
+            return buildMapChildren(basePath, (Map<?, ?>) current);
+        }
+        if (current instanceof List) {
+            return buildListChildren(basePath, ((List<?>) current));
+        }
+        if (current.getClass().isArray()) {
+            return buildArrayChildren(basePath, current);
+        }
+        if (current instanceof Collection) {
+            return buildGenericCollectionChildren(basePath, (Collection<?>) current);
+        }
+        return buildFieldChildren(basePath, current);
+    }
+
+    private List<BeanPropertyNode> buildGenericCollectionChildren(List<PathStep> basePath, Collection<?> coll) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        int i = 0;
+        for (Object value : coll) {
+            if (i >= MAX_CHILDREN) {
+                break;
+            }
+            Object v = unwrapProxy(value);
+            children.add(buildValueNode("[" + i + "]", v, appendStep(basePath, indexStep(i))));
+            i++;
+        }
+        return children;
+    }
+
+    private List<BeanPropertyNode> buildFieldChildren(List<PathStep> basePath, Object current) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        for (Field field : collectFields(current.getClass())) {
+            BeanPropertyNode node = new BeanPropertyNode();
+            node.setLabel(field.getName());
+            node.setPath(appendStep(basePath, fieldStep(field.getName())));
+            try {
+                field.setAccessible(true);
+                Object value = unwrapProxy(field.get(current));
+                node.setClassName(classNameOf(value == null ? field.getType() : value));
+                node.setValuePreview(renderValue(value));
+                node.setNodeKind(detectNodeKind(value == null ? field.getType() : value));
+                node.setExpandable(isExpandable(value));
+                node.setEditable(isEditableField(field));
+            } catch (Exception e) {
+                node.setClassName(field.getType().getName());
+                node.setValuePreview("读取失败");
+                node.setNodeKind("error");
+                node.setError(e.getMessage());
+                node.setExpandable(false);
+                node.setEditable(false);
+            }
+            children.add(node);
+            if (children.size() >= MAX_CHILDREN) {
+                break;
+            }
+        }
+        return children;
+    }
+
+    private List<BeanPropertyNode> buildListChildren(List<PathStep> basePath, List<?> list) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        for (int i = 0; i < list.size() && i < MAX_CHILDREN; i++) {
+            Object value = unwrapProxy(list.get(i));
+            BeanPropertyNode node = buildValueNode("[" + i + "]", value, appendStep(basePath, indexStep(i)));
+            children.add(node);
+        }
+        return children;
+    }
+
+    private List<BeanPropertyNode> buildArrayChildren(List<PathStep> basePath, Object array) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        int length = Array.getLength(array);
+        for (int i = 0; i < length && i < MAX_CHILDREN; i++) {
+            Object value = unwrapProxy(Array.get(array, i));
+            BeanPropertyNode node = buildValueNode("[" + i + "]", value, appendStep(basePath, indexStep(i)));
+            children.add(node);
+        }
+        return children;
+    }
+
+    private List<BeanPropertyNode> buildMapChildren(List<PathStep> basePath, Map<?, ?> map) {
+        List<BeanPropertyNode> children = new ArrayList<BeanPropertyNode>();
+        int count = 0;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (count >= MAX_CHILDREN) {
+                break;
+            }
+            String key = String.valueOf(entry.getKey());
+            Object value = unwrapProxy(entry.getValue());
+            BeanPropertyNode node = buildValueNode("{" + key + "}", value, appendStep(basePath, mapKeyStep(key)));
+            children.add(node);
+            count++;
+        }
+        return children;
+    }
+
+    public BeanPropertyNode buildValueNode(String label, Object value, List<PathStep> path) {
+        BeanPropertyNode node = new BeanPropertyNode();
+        node.setLabel(label);
+        node.setPath(path);
+        node.setClassName(classNameOf(value));
+        node.setValuePreview(renderValue(value));
+        node.setNodeKind(detectNodeKind(value));
+        node.setExpandable(isExpandable(value));
+        return node;
+    }
+
+    private List<Field> collectFields(Class<?> type) {
+        List<Field> fields = new ArrayList<Field>();
+        Set<String> names = new HashSet<String>();
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                if (field.isSynthetic()) {
+                    continue;
+                }
+                if (names.add(field.getName())) {
+                    fields.add(field);
+                }
+            }
+            current = current.getSuperclass();
+        }
+        fields.sort(Comparator.comparing(Field::getName));
+        return fields;
+    }
+
+    private Field findField(Class<?> type, String fieldName) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            try {
+                return current.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException ignored) {
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    private boolean isExpandable(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Class) {
+            return false;
+        }
+        Class<?> type = value.getClass();
+        if (isSimpleType(type)) {
+            return false;
+        }
+        if (type.isArray()) {
+            return Array.getLength(value) > 0;
+        }
+        if (value instanceof Collection) {
+            return !((Collection<?>) value).isEmpty();
+        }
+        if (value instanceof Map) {
+            return !((Map<?, ?>) value).isEmpty();
+        }
+        return !collectFields(type).isEmpty();
+    }
+
+    private boolean isSimpleType(Class<?> type) {
+        return type.isPrimitive()
+                || Number.class.isAssignableFrom(type)
+                || CharSequence.class.isAssignableFrom(type)
+                || Boolean.class.isAssignableFrom(type)
+                || Character.class.isAssignableFrom(type)
+                || Date.class.isAssignableFrom(type)
+                || Enum.class.isAssignableFrom(type)
+                || UUID.class.isAssignableFrom(type)
+                || type.getName().startsWith("java.time.")
+                || type.getName().startsWith("java.lang.");
+    }
+
+    private boolean isEditableField(Field field) {
+        return field != null && isEditableSimpleType(field.getType());
+    }
+
+    private boolean isEditableSimpleType(Class<?> type) {
+        return type.isPrimitive()
+                || Number.class.isAssignableFrom(type)
+                || CharSequence.class.isAssignableFrom(type)
+                || Boolean.class.isAssignableFrom(type)
+                || Character.class.isAssignableFrom(type)
+                || Enum.class.isAssignableFrom(type);
+    }
+
+    private Object convertTextValue(String rawValue, Class<?> targetType) {
+        String text = rawValue == null ? null : rawValue.trim();
+        if ("null".equalsIgnoreCase(text)) {
+            if (targetType.isPrimitive()) {
+                throw new IllegalArgumentException("Primitive field cannot be set to null");
+            }
+            return null;
+        }
+        if (targetType == String.class || CharSequence.class.isAssignableFrom(targetType)) {
+            return rawValue == null ? "" : rawValue;
+        }
+        if (targetType == char.class || targetType == Character.class) {
+            if (text == null || text.length() != 1) {
+                throw new IllegalArgumentException("Character field requires exactly one character");
+            }
+            return text.charAt(0);
+        }
+        if (targetType == boolean.class || targetType == Boolean.class) {
+            if (!"true".equalsIgnoreCase(text) && !"false".equalsIgnoreCase(text)) {
+                throw new IllegalArgumentException("Boolean field requires true or false");
+            }
+            return Boolean.valueOf(text);
+        }
+        if (targetType == byte.class || targetType == Byte.class) {
+            return Byte.valueOf(text);
+        }
+        if (targetType == short.class || targetType == Short.class) {
+            return Short.valueOf(text);
+        }
+        if (targetType == int.class || targetType == Integer.class) {
+            return Integer.valueOf(text);
+        }
+        if (targetType == long.class || targetType == Long.class) {
+            return Long.valueOf(text);
+        }
+        if (targetType == float.class || targetType == Float.class) {
+            return Float.valueOf(text);
+        }
+        if (targetType == double.class || targetType == Double.class) {
+            return Double.valueOf(text);
+        }
+        if (targetType.isEnum()) {
+            Object[] constants = targetType.getEnumConstants();
+            for (Object constant : constants) {
+                if (String.valueOf(constant).equals(text)) {
+                    return constant;
+                }
+            }
+            throw new IllegalArgumentException("Enum constant not found: " + text);
+        }
+        throw new IllegalArgumentException("Unsupported field type: " + targetType.getName());
+    }
+
+    private String renderValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof Date) {
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format((Date) value);
+        }
+        if (value.getClass().isArray()) {
+            return "Array(length=" + Array.getLength(value) + ")";
+        }
+        if (value instanceof Collection) {
+            return value.getClass().getSimpleName() + "(size=" + ((Collection<?>) value).size() + ")";
+        }
+        if (value instanceof Map) {
+            return value.getClass().getSimpleName() + "(size=" + ((Map<?, ?>) value).size() + ")";
+        }
+        if (isSimpleType(value.getClass())) {
+            return String.valueOf(value);
+        }
+        return classNameOf(value) + "@" + Integer.toHexString(System.identityHashCode(value));
+    }
+
+    private String detectNodeKind(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        Class<?> type = value instanceof Class ? (Class<?>) value : value.getClass();
+        if (type.isArray()) {
+            return "array";
+        }
+        if (Collection.class.isAssignableFrom(type)) {
+            return "collection";
+        }
+        if (Map.class.isAssignableFrom(type)) {
+            return "map";
+        }
+        if (isSimpleType(type)) {
+            return "value";
+        }
+        return "object";
+    }
+
+    private String classNameOf(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof Class) {
+            return ((Class<?>) value).getName();
+        }
+        return value.getClass().getName();
+    }
+
+    private Class<?> resolveDisplayClass(Object bean) {
+        bean = unwrapProxy(bean);
+        if (bean == null) {
+            return Object.class;
+        }
+        Class<?> beanClass = bean.getClass();
+        if (Proxy.isProxyClass(beanClass)) {
+            Class<?>[] interfaces = beanClass.getInterfaces();
+            if (interfaces.length > 0) {
+                return interfaces[0];
+            }
+        }
+        if (beanClass.getName().contains("$$") && beanClass.getSuperclass() != null && beanClass.getSuperclass() != Object.class) {
+            return beanClass.getSuperclass();
+        }
+        return beanClass;
+    }
+
+    private Object unwrapProxy(Object candidate) {
+        Object current = candidate;
+        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+        while (current != null && visited.add(current)) {
+            Object next = extractSpringProxyTarget(current);
+            if (next == null || next == current) {
+                return current;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private Object extractSpringProxyTarget(Object candidate) {
+        Object jdkTarget = extractJdkDynamicProxyTarget(candidate);
+        if (jdkTarget != null && jdkTarget != candidate) {
+            return jdkTarget;
+        }
+        Object cglibTarget = extractCglibProxyTarget(candidate);
+        if (cglibTarget != null && cglibTarget != candidate) {
+            return cglibTarget;
+        }
+        return candidate;
+    }
+
+    private Object extractJdkDynamicProxyTarget(Object candidate) {
+        if (candidate == null || !Proxy.isProxyClass(candidate.getClass())) {
+            return null;
+        }
+        try {
+            Object handler = java.lang.reflect.Proxy.getInvocationHandler(candidate);
+            return extractTargetFromAdvisedSupport(handler);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Object extractCglibProxyTarget(Object candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        Class<?> current = candidate.getClass();
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                if (!field.getName().startsWith("CGLIB$CALLBACK_")) {
+                    continue;
+                }
+                try {
+                    field.setAccessible(true);
+                    Object callback = field.get(candidate);
+                    Object target = extractTargetFromAdvisedSupport(callback);
+                    if (target != null) {
+                        return target;
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    private Object extractTargetFromAdvisedSupport(Object source) {
+        if (source == null) {
+            return null;
+        }
+        Object advised = findFieldValue(source, "advised");
+        if (advised == null) {
+            advised = findFieldValue(source, "advisedSupport");
+        }
+        if (advised == null) {
+            return null;
+        }
+        try {
+            Method method = advised.getClass().getMethod("getTargetSource");
+            Object targetSource = method.invoke(advised);
+            if (targetSource == null) {
+                return null;
+            }
+            Method getTarget = targetSource.getClass().getMethod("getTarget");
+            return getTarget.invoke(targetSource);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private Object findFieldValue(Object source, String fieldName) {
+        Field field = findField(source.getClass(), fieldName);
+        if (field == null) {
+            return null;
+        }
+        try {
+            field.setAccessible(true);
+            return field.get(source);
+        } catch (IllegalAccessException ignored) {
+            return null;
+        }
+    }
+
+    private List<PathStep> copyPath(List<PathStep> path) {
+        if (CollectionUtils.isEmpty(path)) {
+            return Collections.emptyList();
+        }
+        List<PathStep> copy = new ArrayList<PathStep>();
+        for (PathStep step : path) {
+            PathStep item = new PathStep();
+            item.setKind(step.getKind());
+            item.setName(step.getName());
+            item.setIndex(step.getIndex());
+            item.setMapKey(step.getMapKey());
+            copy.add(item);
+        }
+        return copy;
+    }
+
+    private List<PathStep> appendStep(List<PathStep> basePath, PathStep step) {
+        List<PathStep> result = new ArrayList<PathStep>();
+        if (!CollectionUtils.isEmpty(basePath)) {
+            result.addAll(copyPath(basePath));
+        }
+        result.add(step);
+        return result;
+    }
+
+    private PathStep fieldStep(String fieldName) {
+        PathStep step = new PathStep();
+        step.setKind("FIELD");
+        step.setName(fieldName);
+        return step;
+    }
+
+    private PathStep indexStep(int index) {
+        PathStep step = new PathStep();
+        step.setKind("INDEX");
+        step.setIndex(index);
+        return step;
+    }
+
+    private PathStep mapKeyStep(String key) {
+        PathStep step = new PathStep();
+        step.setKind("MAP_KEY");
+        step.setMapKey(key);
+        return step;
+    }
+
+    /**
+     * Field + instance method hints for evaluate-expression style completion (IDE-like).
+     */
+    public List<MemberHint> buildMemberHints(Object raw) {
+        Object value = unwrapProxy(raw);
+        List<MemberHint> out = new ArrayList<MemberHint>();
+        if (value == null) {
+            return out;
+        }
+        if (value instanceof Class) {
+            return out;
+        }
+        for (Field field : collectFields(value.getClass())) {
+            MemberHint h = new MemberHint();
+            h.setName(field.getName());
+            h.setKind("FIELD");
+            h.setTypeName(field.getType().getSimpleName());
+            h.setSignature(field.getType().getName() + " " + field.getName());
+            out.add(h);
+        }
+        Set<String> seenMethod = new HashSet<String>();
+        for (Method method : value.getClass().getMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
+                continue;
+            }
+            if (method.getDeclaringClass() == Object.class) {
+                continue;
+            }
+            if (method.isSynthetic()) {
+                continue;
+            }
+            StringBuilder sigKey = new StringBuilder();
+            sigKey.append(method.getName()).append('(');
+            Class<?>[] pt = method.getParameterTypes();
+            for (int i = 0; i < pt.length; i++) {
+                if (i > 0) {
+                    sigKey.append(',');
+                }
+                sigKey.append(pt[i].getName());
+            }
+            sigKey.append(')');
+            if (!seenMethod.add(sigKey.toString())) {
+                continue;
+            }
+            MemberHint h = new MemberHint();
+            h.setName(method.getName());
+            h.setKind("METHOD");
+            h.setTypeName(method.getReturnType().getSimpleName());
+            StringBuilder sb = new StringBuilder();
+            sb.append(method.getReturnType().getSimpleName()).append(' ').append(method.getName()).append('(');
+            for (int i = 0; i < pt.length; i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(pt[i].getSimpleName());
+            }
+            sb.append(')');
+            h.setSignature(sb.toString());
+            out.add(h);
+        }
+        Collections.sort(out, new Comparator<MemberHint>() {
+            @Override
+            public int compare(MemberHint a, MemberHint b) {
+                int c = a.getName().compareTo(b.getName());
+                if (c != 0) {
+                    return c;
+                }
+                return a.getKind().compareTo(b.getKind());
+            }
+        });
+        return out;
+    }
+
+}
